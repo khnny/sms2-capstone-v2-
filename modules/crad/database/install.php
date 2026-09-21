@@ -4,7 +4,9 @@
  * Run this ONCE via browser: /sms2_system/modules/crad/database/install.php
  * or via CLI:  php modules/crad/database/install.php
  *
- * Creates the crad_db database and all required tables.
+ * Creates CRAD tables (crad_*) inside CRAD_DB_NAME.
+ * Target architecture: CRAD_DB_NAME should equal the main SMS2 database
+ * (local: sms2_db, HostForge: hf_db_…).
  */
 
 declare(strict_types=1);
