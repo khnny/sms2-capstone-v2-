@@ -5,7 +5,8 @@
  */
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/config/tables.php';
+$root = dirname(__DIR__, 2);
+require_once $root . '/config/tables.php';
 
 $map = sms2_table_map();
 
@@ -15,7 +16,7 @@ $map = sms2_table_map();
 function sms2_prefix_rewrite_sql_file(string $path, array $logicalToPhysical): void
 {
     if (!is_readable($path)) {
-        throw RuntimeException('Not readable: ' . $path);
+        throw new RuntimeException('Not readable: ' . $path);
     }
 
     $bak = $path . '.preprefix.bak';
@@ -53,7 +54,7 @@ function sms2_prefix_rewrite_sql_file(string $path, array $logicalToPhysical): v
 $sms2Map = $map['sms2'];
 unset($sms2Map['schema_migrations']);
 
-sms2_prefix_rewrite_sql_file(dirname(__DIR__) . '/database/sms2_db.sql', $sms2Map);
-sms2_prefix_rewrite_sql_file(dirname(__DIR__) . '/modules/crad/database/crad_db.sql', $map['crad']);
+sms2_prefix_rewrite_sql_file($root . '/database/sms2_db.sql', $sms2Map);
+sms2_prefix_rewrite_sql_file($root . '/modules/crad/database/crad_db.sql', $map['crad']);
 
 echo "Done.\n";
