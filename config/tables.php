@@ -140,3 +140,39 @@ if (!function_exists('sms2_quote_table')) {
         return '`' . str_replace('`', '``', $physicalName) . '`';
     }
 }
+
+if (!function_exists('sms2_resolve_table')) {
+    /**
+     * Accept logical or already-prefixed SMS2 table name.
+     */
+    function sms2_resolve_table(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return $name;
+        }
+        if (str_starts_with($name, 'sms2_')) {
+            return $name;
+        }
+        $map = sms2_table_map()['sms2'];
+        return $map[$name] ?? $name;
+    }
+}
+
+if (!function_exists('crad_resolve_table')) {
+    /**
+     * Accept logical or already-prefixed CRAD table name.
+     */
+    function crad_resolve_table(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return $name;
+        }
+        if (str_starts_with($name, 'crad_')) {
+            return $name;
+        }
+        $map = sms2_table_map()['crad'];
+        return $map[$name] ?? $name;
+    }
+}

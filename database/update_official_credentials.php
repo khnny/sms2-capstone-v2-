@@ -71,13 +71,13 @@ function smsSyncCradEmails(PDO $crad, array $emails): void
 }
 
 $find = $pdo->prepare(
-    'SELECT id, username, email FROM users
+    'SELECT id, username, email FROM `sms2_users`
      WHERE username = :uname OR LOWER(email) = LOWER(:email)
      LIMIT 1'
 );
 
 $update = $pdo->prepare(
-    'UPDATE users
+    'UPDATE `sms2_users`
         SET username = :username,
             email = :email,
             password_hash = :hash,
@@ -137,7 +137,7 @@ foreach ($accounts as $account) {
     }
 
     $pdo->prepare(
-        'INSERT INTO users
+        'INSERT INTO `sms2_users`
             (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
          VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)'
     )->execute([

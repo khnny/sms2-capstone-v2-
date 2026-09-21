@@ -286,7 +286,7 @@ function sms2RunMigrations(array $options = []): array
             'user' => DB_USER,
             'pass' => DB_PASS,
             'charset' => DB_CHARSET,
-            'sql_file' => dirname(__DIR__) . '/modules/crad/database/crad_db.sql',
+            'sql_file' => dirname(__DIR__) . '/modules/crad/database/sql',
         ],
     ];
 

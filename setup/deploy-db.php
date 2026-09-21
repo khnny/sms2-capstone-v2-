@@ -58,7 +58,7 @@ header('Content-Type: text/html; charset=utf-8');
 </head>
 <body>
     <h1>SMS 2 — Deploy Database</h1>
-    <p>For InfinityFree and other hosts without SSH/CLI. Applies <code>sms2_db.sql</code> and <code>crad_db.sql</code>.</p>
+    <p>For InfinityFree and other hosts without SSH/CLI. Applies <code>sms2_db.sql</code> and <code>sql</code>.</p>
 
     <?php if ($error !== ''): ?>
         <div class="err"><strong>Migration failed:</strong> <?= htmlspecialchars($error) ?></div>

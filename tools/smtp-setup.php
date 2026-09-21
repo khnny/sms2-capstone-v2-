@@ -35,7 +35,7 @@ function smsSetupFindSuperadmin(): ?array
     }
     $stmt = $pdo->query(
         "SELECT id, username, email, full_name, role_key, status
-         FROM users
+         FROM `sms2_users`
          WHERE role_key = 'superadmin'
          ORDER BY id ASC
          LIMIT 1"
@@ -82,12 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 if ($super && $superEmail !== '' && strcasecmp((string) $super['email'], $superEmail) !== 0) {
                     // Keep email unique
-                    $chk = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id <> ? LIMIT 1');
+                    $chk = $pdo->prepare('SELECT id FROM `sms2_users` WHERE LOWER(email) = LOWER(?) AND id <> ? LIMIT 1');
                     $chk->execute([$superEmail, (int) $super['id']]);
                     if ($chk->fetch()) {
                         $flashErr = 'That email is already used by another account. Pick a different Gmail for superadmin.';
                     } else {
-                        $upd = $pdo->prepare('UPDATE users SET email = ? WHERE id = ? AND role_key = ?');
+                        $upd = $pdo->prepare('UPDATE `sms2_users` SET email = ? WHERE id = ? AND role_key = ?');
                         $upd->execute([$superEmail, (int) $super['id'], 'superadmin']);
                         $super = smsSetupFindSuperadmin();
                     }

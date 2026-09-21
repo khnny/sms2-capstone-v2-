@@ -135,7 +135,7 @@ function smsSetting(string $key, string $default = ''): string
     }
 
     try {
-        $stmt = $pdo->prepare('SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT setting_value FROM `sms2_system_settings` WHERE setting_key = ? LIMIT 1');
         $stmt->execute([$key]);
         $row = $stmt->fetch();
         $raw = $row ? (string) $row['setting_value'] : $default;
@@ -147,7 +147,7 @@ function smsSetting(string $key, string $default = ''): string
                     try {
                         $enc = smsSecretEncrypt($raw);
                         $upd = $pdo->prepare(
-                            'UPDATE system_settings SET setting_value = ? WHERE setting_key = ?'
+                            'UPDATE `sms2_system_settings` SET setting_value = ? WHERE setting_key = ?'
                         );
                         $upd->execute([$enc, $key]);
                     } catch (Throwable $e) {
@@ -159,7 +159,7 @@ function smsSetting(string $key, string $default = ''): string
                     if ($dec === '') {
                         try {
                             $upd = $pdo->prepare(
-                                'UPDATE system_settings SET setting_value = ? WHERE setting_key = ?'
+                                'UPDATE `sms2_system_settings` SET setting_value = ? WHERE setting_key = ?'
                             );
                             $upd->execute(['', $key]);
                         } catch (Throwable $e) {
@@ -200,7 +200,7 @@ function smsSetSetting(string $key, string $value): bool
 
     try {
         $stmt = $pdo->prepare(
-            'INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)
+            'INSERT INTO `sms2_system_settings` (setting_key, setting_value) VALUES (?, ?)
              ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
         );
         $stmt->execute([$key, $storeValue]);

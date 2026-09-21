@@ -93,7 +93,7 @@ $roles = [
 ];
 
 $insRole = $pdo->prepare(
-    'INSERT INTO roles (role_key, label, description) VALUES (?, ?, ?)'
+    'INSERT INTO `sms2_roles` (role_key, label, description) VALUES (?, ?, ?)'
 );
 foreach ($roles as $r) {
     $insRole->execute($r);
@@ -121,7 +121,7 @@ $defaults = [
 ];
 
 // Store under actual role_key for crad_officer as 'crad' in permissions table
-// using role_key column that references roles — crad is NOT in roles table.
+// using role_key column that  `sms2_roles` — crad is NOT in roles table.
 // So we store permissions under crad_officer and map in app, OR add a virtual key.
 // Simplest: store permissions with role_key = crad_officer for CRAD modules.
 
@@ -142,7 +142,7 @@ $permRows = [
 ];
 
 $insPerm = $pdo->prepare(
-    'INSERT INTO role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
+    'INSERT INTO `sms2_role_permissions` (role_key, module_key, granted) VALUES (?, ?, 1)'
 );
 foreach ($permRows as $roleKey => $modules) {
     foreach ($modules as $mod) {
@@ -177,7 +177,7 @@ $settings = [
 ];
 
 $insSet = $pdo->prepare(
-    'INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)'
+    'INSERT INTO `sms2_system_settings` (setting_key, setting_value) VALUES (?, ?)'
 );
 foreach ($settings as $k => $v) {
     $insSet->execute([$k, $v]);
@@ -185,7 +185,7 @@ foreach ($settings as $k => $v) {
 out('Settings seeded.');
 
 $pdo->prepare(
-    'INSERT INTO activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
+    'INSERT INTO `sms2_activity_logs` (user_id, user_name, role_key, action, module_key, detail, ip_address)
      VALUES (NULL, ?, ?, ?, ?, ?, ?)'
 )->execute([
     'System',
