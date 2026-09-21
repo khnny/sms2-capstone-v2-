@@ -5,6 +5,9 @@
  *
  * Prefer setting these in the HostForge panel (no password in files):
  *   DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+ *   SMS2_DEPLOY_TOKEN  (optional; for /setup/deploy-db.php)
+ *
+ * Full checklist: database/HOSTFORGE_DEPLOY.txt
  *
  * PLACEHOLDERS ONLY — never commit real HostForge credentials.
  * config/local.php is gitignored.
