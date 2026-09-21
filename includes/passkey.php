@@ -30,7 +30,7 @@ function smsEnsurePasskeyTable(): void
             PRIMARY KEY (id),
             UNIQUE KEY uq_passkey_cred (credential_id),
             KEY idx_passkey_user (user_id),
-            CONSTRAINT fk_passkey_user FOREIGN KEY (user_id)  `sms2_users`(id) ON DELETE CASCADE
+            CONSTRAINT fk_passkey_user FOREIGN KEY (user_id) REFERENCES `sms2_users`(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 }

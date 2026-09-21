@@ -24,7 +24,7 @@ function smsEnsureAuthenticatorTable(): void
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (user_id),
-            CONSTRAINT fk_ua_user FOREIGN KEY (user_id)  `sms2_users`(id) ON DELETE CASCADE
+            CONSTRAINT fk_ua_user FOREIGN KEY (user_id) REFERENCES `sms2_users`(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
     // Widen legacy VARCHAR(64) columns so encrypted secrets fit
