@@ -72,5 +72,20 @@ InfinityFree has no SSH, so use the web deploy helper instead of CLI migrate.
 7. Open: https://YOUR-SITE.infinityfreeapp.com/setup/ and create the Super Admin.
 8. Remove SMS2_DEPLOY_TOKEN from config/local.php after migration succeeds.
 
-Alternative: import database/sms2_db.sql and modules/crad/database/crad_db.sql
-via phpMyAdmin instead of step 6.
+HostForge / single-DB cutover
+-----------------------------
+1. Backup both databases.
+2. Deploy this codebase (prefixed dumps + PHP).
+3. Set HostForge env: DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+   (or copy config/local.hostforge.example.php → config/local.php with placeholders filled).
+4. Ensure CRAD uses the same DB (omit CRAD_DB_NAME, or set it equal to DB_DATABASE).
+5. For existing unprefixed data:
+     php database/migrate_to_single_prefixed.php --dry-run
+     php database/migrate_to_single_prefixed.php
+6. For empty HostForge DB (fresh):
+     php database/migrate.php
+7. Smoke:
+     php database/tools/smoke_single_db.php
+
+Table map: config/tables.php (sms2_* + crad_*).
+Do not commit real HostForge passwords or *.env files.
