@@ -1197,6 +1197,11 @@ function smsLoginThrottleKey(string $loginInput = ''): string
 
 function smsEnsureLoginThrottleTables(): void
 {
+    static $done = false;
+    if ($done) {
+        return;
+    }
+
     $pdo = db();
     if (!$pdo) {
         return;
@@ -1220,6 +1225,24 @@ function smsEnsureLoginThrottleTables(): void
     } catch (Throwable $e) {
         error_log('smsEnsureLoginThrottleTables: ' . $e->getMessage());
     }
+
+    // phpMyAdmin dumps often create this table without PK / AUTO_INCREMENT.
+    // CREATE IF NOT EXISTS will not repair an existing broken schema — self-heal here.
+    foreach ([
+        'ALTER TABLE `sms2_login_throttles` ADD PRIMARY KEY (`id`)',
+        'ALTER TABLE `sms2_login_throttles` MODIFY `id` INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'ALTER TABLE `sms2_login_throttles` ADD UNIQUE KEY `uq_login_throttle_key` (`throttle_key`)',
+        'ALTER TABLE `sms2_login_throttles` ADD KEY `idx_login_throttle_ip` (`ip_address`)',
+        'ALTER TABLE `sms2_login_throttles` ADD KEY `idx_login_throttle_locked` (`locked_until`)',
+    ] as $repairSql) {
+        try {
+            $pdo->exec($repairSql);
+        } catch (Throwable $e) {
+            // Already correct, duplicate key name, or no ALTER privilege — safe to ignore.
+        }
+    }
+
+    $done = true;
 }
 
 /**
@@ -1312,48 +1335,54 @@ function smsRegisterLoginThrottleFailure(string $loginInput = ''): array
         return $current;
     }
 
-    // Atomic increment — prevents spam/race from skipping the lock threshold
-    $pdo->prepare(
-        'INSERT INTO `sms2_login_throttles` (throttle_key, ip_address, attempts, locked_until)
-         VALUES (?, ?, 1, NULL)
-         ON DUPLICATE KEY UPDATE
-            attempts = attempts + 1,
-            ip_address = VALUES(ip_address),
-            locked_until = IF(locked_until IS NOT NULL AND locked_until > NOW(), locked_until, NULL)'
-    )->execute([$key, $ip]);
-
-    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
-    $stmt->execute([$key]);
-    $row = $stmt->fetch() ?: [];
-    $attempts = max(1, (int) ($row['attempts'] ?? 1));
-    $lockedUntil = null;
-    $locked = false;
-
-    if ($maxFails > 0 && $attempts >= $maxFails) {
-        $locked = true;
+    try {
+        // Atomic increment — prevents spam/race from skipping the lock threshold
         $pdo->prepare(
-            'UPDATE `sms2_login_throttles`
-             SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
-             WHERE throttle_key = ?'
-        )->execute([$lockSeconds, $key]);
-        $fresh = $pdo->prepare('SELECT locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
-        $fresh->execute([$key]);
-        $lockedUntil = $fresh->fetchColumn() ?: null;
-        if (is_string($lockedUntil) && $lockedUntil !== '') {
-            $lockedUntil = (string) $lockedUntil;
-        } else {
-            $lockedUntil = null;
-        }
-    }
+            'INSERT INTO `sms2_login_throttles` (throttle_key, ip_address, attempts, locked_until)
+             VALUES (?, ?, 1, NULL)
+             ON DUPLICATE KEY UPDATE
+                attempts = attempts + 1,
+                ip_address = VALUES(ip_address),
+                locked_until = IF(locked_until IS NOT NULL AND locked_until > NOW(), locked_until, NULL)'
+        )->execute([$key, $ip]);
 
-    return [
-        'attempts' => $attempts,
-        'max' => $maxFails,
-        'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
-        'locked' => $locked,
-        'lock_seconds' => $lockSeconds,
-        'locked_until' => $lockedUntil,
-    ];
+        $stmt = $pdo->prepare('SELECT attempts, locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
+        $stmt->execute([$key]);
+        $row = $stmt->fetch() ?: [];
+        $attempts = max(1, (int) ($row['attempts'] ?? 1));
+        $lockedUntil = null;
+        $locked = false;
+
+        if ($maxFails > 0 && $attempts >= $maxFails) {
+            $locked = true;
+            $pdo->prepare(
+                'UPDATE `sms2_login_throttles`
+                 SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
+                 WHERE throttle_key = ?'
+            )->execute([$lockSeconds, $key]);
+            $fresh = $pdo->prepare('SELECT locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
+            $fresh->execute([$key]);
+            $lockedUntil = $fresh->fetchColumn() ?: null;
+            if (is_string($lockedUntil) && $lockedUntil !== '') {
+                $lockedUntil = (string) $lockedUntil;
+            } else {
+                $lockedUntil = null;
+            }
+        }
+
+        return [
+            'attempts' => $attempts,
+            'max' => $maxFails,
+            'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
+            'locked' => $locked,
+            'lock_seconds' => $lockSeconds,
+            'locked_until' => $lockedUntil,
+        ];
+    } catch (Throwable $e) {
+        error_log('smsRegisterLoginThrottleFailure: ' . $e->getMessage());
+        // Never fatal the login page if throttle storage is misconfigured.
+        return $result;
+    }
 }
 
 function smsClearLoginThrottle(string $loginInput = ''): void
@@ -1380,19 +1409,24 @@ function smsForceLoginThrottleLock(string $loginInput = '', ?int $lockSeconds = 
     $seconds = max(1, $lockSeconds ?? smsLockoutSeconds());
     $attempts = max(1, $minAttempts ?? max(1, (int) smsSetting('max_failed_logins', '3')));
     $key = smsLoginThrottleKey($loginInput);
-    $pdo->prepare(
-        'INSERT INTO `sms2_login_throttles` (throttle_key, ip_address, attempts, locked_until)
-         VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
-         ON DUPLICATE KEY UPDATE
-            attempts = GREATEST(attempts, VALUES(attempts)),
-            locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
-            ip_address = VALUES(ip_address)'
-    )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
+    try {
+        $pdo->prepare(
+            'INSERT INTO `sms2_login_throttles` (throttle_key, ip_address, attempts, locked_until)
+             VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
+             ON DUPLICATE KEY UPDATE
+                attempts = GREATEST(attempts, VALUES(attempts)),
+                locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
+                ip_address = VALUES(ip_address)'
+        )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
 
-    $stmt = $pdo->prepare('SELECT locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
-    $stmt->execute([$key]);
-    $until = $stmt->fetchColumn();
-    return $until ? (string) $until : null;
+        $stmt = $pdo->prepare('SELECT locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
+        $stmt->execute([$key]);
+        $until = $stmt->fetchColumn();
+        return $until ? (string) $until : null;
+    } catch (Throwable $e) {
+        error_log('smsForceLoginThrottleLock: ' . $e->getMessage());
+        return null;
+    }
 }
 
 function smsLoginGateSet(?string $lockedUntil, string $message, string $alert = 'warning', ?int $lockSeconds = null): void
