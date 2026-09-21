@@ -35,8 +35,13 @@ HostForge:
   - Choose MySQL in the database step. HostForge's MySQL option is MariaDB,
     which is compatible with this project.
   - Do not choose PostgreSQL; these schema dumps are MySQL/MariaDB SQL.
-  - HostForge-injected DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME,
-    DB_PASSWORD, DB_CONNECTION, and DB_CHARSET are supported automatically.
+  - Prefer HostForge Environment Variables for DB_HOST, DB_PORT, DB_DATABASE,
+    DB_USERNAME, DB_PASSWORD, DB_CONNECTION (no password in committed files).
+  - Optional fallback: copy config/local.hostforge.example.php → config/local.php
+    with placeholders filled (config/local.php is gitignored).
+  - Single-database target: SMS2 + CRAD share one schema (sms2_* + crad_* tables;
+    see config/tables.php). Set CRAD_DB_NAME to the same value as DB_DATABASE,
+    or omit CRAD_DB_NAME so migrate falls back to the main DB.
   - After the first successful deployment, open the web terminal and run:
 
      php database/migrate.php
