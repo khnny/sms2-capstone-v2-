@@ -47,10 +47,10 @@ $skipFiles = [
  */
 function rewrite_php_content(string $content, array $all): string
 {
-    // Cross-db qualifier → plain prefixed table
+    // Cross-db qualifier → plain prefixed table (do NOT strip bare "crad_db." from paths like crad_db.sql)
     $content = str_replace('sms2_db.users', 'sms2_users', $content);
     $content = str_replace('`sms2_db`.`users`', '`sms2_users`', $content);
-    $content = str_replace('crad_db.', '', $content); // rare qualifier prefix; tables become crad_*
+    $content = preg_replace('/\bcrad_db\.(?=`?[a-z_])/i', '', $content) ?? $content;
 
     foreach ($all as $logical => $physical) {
         // Already prefixed — skip if content only has physical
