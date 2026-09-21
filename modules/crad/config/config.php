@@ -1,7 +1,11 @@
 <?php
 /**
  * CRAD Module - Database Configuration
- * Separate database for research proposal tracking
+ *
+ * Target: same physical database as SMS2 (single-DB architecture).
+ * Set CRAD_DB_NAME to match DB_NAME / DB_DATABASE (local: sms2_db,
+ * HostForge: hf_db_…). During transition, CRAD_DB_NAME may still point
+ * at a dedicated crad_db until the merge migration completes.
  */
 
 declare(strict_types=1);

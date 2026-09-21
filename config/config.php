@@ -21,12 +21,16 @@ if (!defined('ROOT_PATH')) {
     define('ROOT_PATH', dirname(__DIR__));
 }
 
-// Optional machine-specific overrides. Copy config/local.example.php to
-// config/local.php on another computer if its MySQL settings are different.
+// Optional machine-specific overrides. Copy config/local.example.php (local)
+// or config/local.hostforge.example.php (HostForge) to config/local.php.
+// Prefer HostForge Environment Variables for DB_* when available.
 $sms2LocalConfig = __DIR__ . '/local.php';
 if (is_readable($sms2LocalConfig)) {
     require_once $sms2LocalConfig;
 }
+
+// Central sms2_* / crad_* table map (see config/tables.php).
+require_once __DIR__ . '/tables.php';
 
 if (!function_exists('sms2_env')) {
     function sms2_env(string $key, ?string $default = null): ?string
