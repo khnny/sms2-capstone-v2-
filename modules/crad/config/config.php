@@ -225,7 +225,7 @@ function cradCleanupPreoralEvaluationsForInvalidRegistry(PDO $pdo, ?array $group
         $checked = true;
     }
 
-    foreach (['preoral_defense_evaluations', 'research_groups'] as $tbl) {
+    foreach (['crad_preoral_defense_evaluations', 'crad_research_groups'] as $tbl) {
         if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($tbl))->fetchColumn()) {
             return ['ok' => true, 'deleted' => 0, 'message' => 'Pre-oral evaluation cleanup skipped; table ' . $tbl . ' is missing.'];
         }
@@ -310,6 +310,9 @@ function cradEnsurePanelNotificationDeleteTrigger(PDO $pdo): void
 
 function cradFindForeignKey(PDO $pdo, string $table, string $column, string $referencedTable, string $referencedColumn): ?array
 {
+    $table = crad_resolve_table($table);
+    $referencedTable = crad_resolve_table($referencedTable);
+
     $stmt = $pdo->prepare("
         SELECT
             kcu.CONSTRAINT_NAME,
@@ -339,6 +342,7 @@ function cradFindForeignKey(PDO $pdo, string $table, string $column, string $ref
 
 function cradDropForeignKey(PDO $pdo, string $table, string $constraintName): void
 {
+    $table = crad_resolve_table($table);
     $pdo->exec('ALTER TABLE `' . str_replace('`', '``', $table) . '` DROP FOREIGN KEY `' . str_replace('`', '``', $constraintName) . '`');
 }
 
@@ -350,7 +354,7 @@ function cradEnsureResearchGroupHistoryProtection(PDO $pdo): array
         'message' => 'Research group child history protection is ready.',
     ];
 
-    foreach (['research_groups', 'research_plans'] as $table) {
+    foreach (['crad_research_groups', 'crad_research_plans'] as $table) {
         if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
             return [
                 'ok' => false,
@@ -369,7 +373,7 @@ function cradEnsureResearchGroupHistoryProtection(PDO $pdo): array
         ];
     }
 
-    $fk = cradFindForeignKey($pdo, 'research_plans', 'research_group_id', 'research_groups', 'id');
+    $fk = cradFindForeignKey($pdo, 'crad_research_plans', 'research_group_id', 'crad_research_groups', 'id');
     $needsNullable = strtoupper((string) ($column['Null'] ?? '')) !== 'YES';
     $needsSetNull = !$fk || strtoupper((string) ($fk['DELETE_RULE'] ?? '')) !== 'SET NULL';
 
@@ -378,7 +382,7 @@ function cradEnsureResearchGroupHistoryProtection(PDO $pdo): array
     }
 
     if ($fk) {
-        cradDropForeignKey($pdo, 'research_plans', (string) $fk['CONSTRAINT_NAME']);
+        cradDropForeignKey($pdo, 'crad_research_plans', (string) $fk['CONSTRAINT_NAME']);
         $result['changed'] = true;
     }
 
@@ -485,10 +489,10 @@ function cradEnsureTitleApprovalResearchGroupCascade(PDO $pdo, bool $reconcileEx
         SELECT TABLE_NAME
         FROM information_schema.TABLES
         WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME IN ('title_approvals', 'research_groups')
+          AND TABLE_NAME IN ('crad_title_approvals', 'crad_research_groups')
     ")->fetchAll(PDO::FETCH_COLUMN);
 
-    foreach (['title_approvals', 'research_groups'] as $requiredTable) {
+    foreach (['crad_title_approvals', 'crad_research_groups'] as $requiredTable) {
         if (!in_array($requiredTable, $tables, true)) {
             return [
                 'ok' => false,
@@ -542,7 +546,7 @@ function cradEnsureTitleApprovalResearchGroupCascade(PDO $pdo, bool $reconcileEx
         ];
     }
 
-    $existing = cradFindForeignKey($pdo, 'research_groups', 'title_approval_id', 'title_approvals', 'id');
+    $existing = cradFindForeignKey($pdo, 'crad_research_groups', 'title_approval_id', 'crad_title_approvals', 'id');
 
     if ($existing) {
         $deleteRule = strtoupper((string) ($existing['DELETE_RULE'] ?? ''));
@@ -552,7 +556,7 @@ function cradEnsureTitleApprovalResearchGroupCascade(PDO $pdo, bool $reconcileEx
             return $result;
         }
 
-        cradDropForeignKey($pdo, 'research_groups', (string) $existing['CONSTRAINT_NAME']);
+        cradDropForeignKey($pdo, 'crad_research_groups', (string) $existing['CONSTRAINT_NAME']);
         $result['changed'] = true;
     }
 
@@ -599,7 +603,7 @@ function cradReconcileOrphanResearchCoordinatorAssignments(PDO $pdo): array
         'message' => 'No orphaned research coordinator assignments found.',
     ];
 
-    foreach (['title_approvals', 'research_coordinator_assignments'] as $table) {
+    foreach (['crad_title_approvals', 'crad_research_coordinator_assignments'] as $table) {
         if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
             return [
                 'ok' => false,
@@ -665,7 +669,7 @@ function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $recon
         'message' => 'Title approval research coordinator assignment FK is ready.',
     ];
 
-    foreach (['title_approvals', 'research_coordinator_assignments'] as $table) {
+    foreach (['crad_title_approvals', 'crad_research_coordinator_assignments'] as $table) {
         if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
             return [
                 'ok' => false,
@@ -729,7 +733,7 @@ function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $recon
         ];
     }
 
-    $existing = cradFindForeignKey($pdo, 'research_coordinator_assignments', 'title_approval_id', 'title_approvals', 'id');
+    $existing = cradFindForeignKey($pdo, 'crad_research_coordinator_assignments', 'title_approval_id', 'crad_title_approvals', 'id');
     if ($existing) {
         $deleteRule = strtoupper((string) ($existing['DELETE_RULE'] ?? ''));
         $updateRule = strtoupper((string) ($existing['UPDATE_RULE'] ?? ''));
@@ -741,7 +745,7 @@ function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $recon
             return $result;
         }
 
-        cradDropForeignKey($pdo, 'research_coordinator_assignments', (string) $existing['CONSTRAINT_NAME']);
+        cradDropForeignKey($pdo, 'crad_research_coordinator_assignments', (string) $existing['CONSTRAINT_NAME']);
         $result['changed'] = true;
     }
 
@@ -771,7 +775,7 @@ function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $rec
         'message' => 'Title approval adviser assignment consistency is ready.',
     ];
 
-    foreach (['title_approvals', 'research_adviser_assignments', 'research_groups'] as $table) {
+    foreach (['crad_title_approvals', 'crad_research_adviser_assignments', 'crad_research_groups'] as $table) {
         $exists = $pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn();
         if (!$exists) {
             return [
