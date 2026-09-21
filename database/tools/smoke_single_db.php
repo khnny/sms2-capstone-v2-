@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
-require_once dirname(__DIR__) . '/config/database.php';
-require_once dirname(__DIR__) . '/modules/crad/config/config.php';
+$root = dirname(__DIR__, 2);
+require_once $root . '/config/database.php';
+require_once $root . '/modules/crad/config/config.php';
 
 echo 'DB_NAME=' . DB_NAME . ' CRAD_DB_NAME=' . CRAD_DB_NAME . PHP_EOL;
 echo 'Same DB: ' . (DB_NAME === CRAD_DB_NAME ? 'yes' : 'no') . PHP_EOL;
