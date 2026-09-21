@@ -76,23 +76,13 @@ function smsEnsureSecurityTables(): void
         // ignore
     }
 
-    try {
-        $pdo->exec(
-            'CREATE TABLE IF NOT EXISTS `sms2_login_throttles` (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                throttle_key CHAR(64) NOT NULL,
-                ip_address VARCHAR(45) NOT NULL,
-                attempts INT UNSIGNED NOT NULL DEFAULT 0,
-                locked_until DATETIME NULL,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                UNIQUE KEY uq_login_throttle_key (throttle_key),
-                KEY idx_login_throttle_ip (ip_address),
-                KEY idx_login_throttle_locked (locked_until)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-        );
-    } catch (Throwable $e) {
-        error_log('smsEnsureSecurityTables login_throttles: ' . $e->getMessage());
+    if (function_exists('smsEnsureLoginThrottleTables')) {
+        smsEnsureLoginThrottleTables();
+    } else {
+        require_once __DIR__ . '/authentication.php';
+        if (function_exists('smsEnsureLoginThrottleTables')) {
+            smsEnsureLoginThrottleTables();
+        }
     }
 
     if (function_exists('smsEnsureAuthenticatorTable')) {
