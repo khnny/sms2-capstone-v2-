@@ -42,9 +42,9 @@ function smsSyncCradEmails(PDO $crad, array $emails): void
     }
 
     $tables = [
-        ['research_panel_assignments', 'panel_email'],
-        ['research_adviser_assignments', 'adviser_email'],
-        ['research_coordinator_assignments', 'coordinator_email'],
+        ['crad_research_panel_assignments', 'panel_email'],
+        ['crad_research_adviser_assignments', 'adviser_email'],
+        ['crad_research_coordinator_assignments', 'coordinator_email'],
         ['crad_notifications', 'recipient_email'],
     ];
 

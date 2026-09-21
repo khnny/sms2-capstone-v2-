@@ -31,7 +31,7 @@ $user    = CRAD_DB_USER;
 $pass    = CRAD_DB_PASS;
 $dbName  = CRAD_DB_NAME;
 $charset = CRAD_DB_CHARSET;
-$sqlFile = __DIR__ . '/sql';
+$sqlFile = __DIR__ . '/crad_db.sql';
 
 if (!$isCli) {
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
