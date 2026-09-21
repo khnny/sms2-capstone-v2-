@@ -19,7 +19,14 @@ if (!defined('CRAD_DB_PORT')) {
     define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], '3306'));
 }
 if (!defined('CRAD_DB_NAME')) {
-    define('CRAD_DB_NAME', sms2_env_first(['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'], 'crad_db'));
+    // Default: same physical database as SMS2 (single-DB architecture).
+    define(
+        'CRAD_DB_NAME',
+        sms2_env_first(
+            ['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'],
+            defined('DB_NAME') ? (string) DB_NAME : 'sms2_db'
+        )
+    );
 }
 if (!defined('CRAD_DB_USER')) {
     define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], 'root'));

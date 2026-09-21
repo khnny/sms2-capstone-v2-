@@ -264,14 +264,7 @@ function sms2RunMigrations(array $options = []): array
         $lines[] = $message;
     };
 
-    // Single-database architecture: SMS2 + CRAD dumps apply to DB_NAME.
-    // CRAD_DB_* may still differ during transition; prefer main DB when equal or unset.
-    $cradDatabase = CRAD_DB_NAME;
-    if ($cradDatabase === '' || $cradDatabase === 'crad_db') {
-        // If only one HostForge DB exists, install CRAD into main DB.
-        $cradDatabase = DB_NAME;
-    }
-
+    // Single-database architecture: both dumps apply into DB_NAME (sms2_* + crad_*).
     $targets = [
         [
             'label' => 'SMS2 schema (sms2_*)',
@@ -297,18 +290,7 @@ function sms2RunMigrations(array $options = []): array
         ],
     ];
 
-    // If operator explicitly keeps a separate CRAD_DB_NAME different from DB_NAME, honor it.
-    if (CRAD_DB_NAME !== DB_NAME && CRAD_DB_NAME !== 'crad_db') {
-        $targets[1]['host'] = CRAD_DB_HOST;
-        $targets[1]['port'] = CRAD_DB_PORT;
-        $targets[1]['database'] = CRAD_DB_NAME;
-        $targets[1]['user'] = CRAD_DB_USER;
-        $targets[1]['pass'] = CRAD_DB_PASS;
-        $targets[1]['charset'] = CRAD_DB_CHARSET;
-        sms2MigrateOut('Note: CRAD_DB_NAME differs from DB_NAME — dual-DB mode.', $sink);
-    } else {
-        sms2MigrateOut('Single-database mode: applying SMS2 + CRAD into ' . DB_NAME, $sink);
-    }
+    sms2MigrateOut('Single-database mode: applying SMS2 + CRAD into ' . DB_NAME, $sink);
 
     $connection = strtolower((string) sms2_env_first(['SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql'));
     if (!in_array($connection, ['mysql', 'mariadb'], true)) {
