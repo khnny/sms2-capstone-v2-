@@ -5,6 +5,10 @@ config/local.hostforge.php
 *.env
 !.env.example
 
+# One-shot rewrite backups from prefix migration tools
+*.preprefix.bak
+*.sql.preprefix.bak
+
 # Secrets and generated keys
 storage/keys/*
 !storage/keys/.gitignore
