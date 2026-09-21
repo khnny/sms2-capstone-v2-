@@ -1,9 +1,13 @@
 <?php
 /**
- * Optional machine-specific settings.
+ * Optional machine-specific settings (LOCAL XAMPP).
  *
- * Copy this file to config/local.php only on the computer that needs custom
+ * Copy this file to config/local.php on the computer that needs custom
  * values. Keep config/local.php private if it contains real passwords.
+ *
+ * Same codebase for Local and HostForge — only DB connection config differs.
+ * After the single-DB migration, SMS2 and CRAD share one schema with
+ * sms2_* and crad_* table prefixes (see config/tables.php).
  */
 
 // Optional: Cursor API key for AI document analysis and scheduling helpers.
@@ -17,15 +21,22 @@
 
 define('SMS2_LOCAL_BASE_URL', '/sms2_system');
 
-// Main SMS2 database.
+// --- Main database (env-equivalent: DB_HOST, DB_DATABASE, …) ---
+define('DB_CONNECTION', 'mysql');
 define('DB_HOST', 'localhost');
+define('DB_PORT', '3306');
 define('DB_NAME', 'sms2_db');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
-// Optional module databases. These default to the main DB host/user/password.
-define('CRAD_DB_NAME', 'crad_db');
-define('STUDENT_PORTAL_DB_NAME', 'student_portal_db');
-define('REPORTS_DB_NAME', 'reports_db');
-define('USERMGMT_DB_NAME', 'user_management_db');
+// --- Target architecture: ONE database for SMS2 + CRAD ---
+// After migration, keep CRAD on the same DB as SMS2:
+define('CRAD_DB_NAME', 'sms2_db');
+define('STUDENT_PORTAL_DB_NAME', 'sms2_db');
+define('REPORTS_DB_NAME', 'sms2_db');
+define('USERMGMT_DB_NAME', 'sms2_db');
+
+// Pre-migration only (temporary): uncomment if CRAD still lives in crad_db
+// and comment out CRAD_DB_NAME = sms2_db above.
+// define('CRAD_DB_NAME', 'crad_db');
