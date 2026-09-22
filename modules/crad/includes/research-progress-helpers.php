@@ -117,6 +117,7 @@ function rpGroupAcademicPhase(PDO $crad, int $groupId): string
 
 function _rpAddColumnIfMissing(PDO $crad, string $table, string $column, string $definition): void
 {
+    $table = crad_resolve_table($table);
     try {
         $stmt = $crad->prepare(
             "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
@@ -126,7 +127,7 @@ function _rpAddColumnIfMissing(PDO $crad, string $table, string $column, string 
         );
         $stmt->execute([$table, $column]);
         if ((int) $stmt->fetchColumn() === 0) {
-            $crad->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
+            $crad->exec('ALTER TABLE `' . str_replace('`', '``', $table) . '` ADD COLUMN `' . $column . '` ' . $definition);
         }
     } catch (Throwable $e) {
         error_log("_rpAddColumnIfMissing($table.$column): " . $e->getMessage());
@@ -1220,20 +1221,22 @@ function rpIsTokenRecentlyUsed(PDO $crad, string $table, string $token, int $win
     if (empty($token)) {
         return false;
     }
-    
-    $allowedTables = ['research_progress_updates', 'research_progress_feedback'];
-    if (!in_array($table, $allowedTables, true)) {
+
+    $logical = preg_replace('/^crad_/', '', trim($table)) ?: trim($table);
+    $allowedLogical = ['research_progress_updates', 'research_progress_feedback'];
+    if (!in_array($logical, $allowedLogical, true)) {
         return false;
     }
-    
-    $timeColumn = $table === 'research_progress_updates' ? 'submitted_at' : 'created_at';
-    
+
+    $physical = crad_resolve_table($logical);
+    $timeColumn = $logical === 'research_progress_updates' ? 'submitted_at' : 'created_at';
+
     $stmt = $crad->prepare("
-        SELECT COUNT(*) FROM {$table}
+        SELECT COUNT(*) FROM `" . str_replace('`', '``', $physical) . "`
         WHERE submission_token = ?
           AND {$timeColumn} >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
     ");
-    
+
     $stmt->execute([$token, $windowMinutes]);
     return (int) $stmt->fetchColumn() > 0;
 }

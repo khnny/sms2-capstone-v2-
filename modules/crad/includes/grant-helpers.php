@@ -163,6 +163,7 @@ function grantRedirectUnauthorized(): void
 // ─────────────────────────────────────────────────────────────────────────────
 function _grantAddColumnIfMissing(PDO $crad, string $table, string $column, string $definition): void
 {
+    $table = crad_resolve_table($table);
     try {
         // Use INFORMATION_SCHEMA — supports parameterized queries on both MySQL and MariaDB.
         // SHOW COLUMNS … LIKE ? is NOT supported as a prepared statement on MariaDB.
@@ -174,7 +175,7 @@ function _grantAddColumnIfMissing(PDO $crad, string $table, string $column, stri
         );
         $stmt->execute([$table, $column]);
         if ((int) $stmt->fetchColumn() === 0) {
-            $crad->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
+            $crad->exec('ALTER TABLE `' . str_replace('`', '``', $table) . '` ADD COLUMN `' . $column . '` ' . $definition);
         }
     } catch (Throwable $e) {
         error_log("_grantAddColumnIfMissing($table.$column): " . $e->getMessage());
@@ -860,7 +861,7 @@ function _grantEnsureApplicationStatusEnum(PDO $crad): void
         $stmt = $crad->prepare(
             "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
               WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME = 'grant_applications'
+                AND TABLE_NAME = 'crad_grant_applications'
                 AND COLUMN_NAME = 'status'"
         );
         $stmt->execute();
@@ -991,7 +992,7 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
         $colStmt = $crad->prepare(
             "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
               WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME   = 'grant_applications'"
+                AND TABLE_NAME   = 'crad_grant_applications'"
         );
         $colStmt->execute();
         foreach ($colStmt->fetchAll(PDO::FETCH_COLUMN) as $colName) {
