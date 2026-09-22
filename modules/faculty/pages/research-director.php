@@ -85,51 +85,6 @@ function rdScheduleSidebarActivePage(string $view, string $defenseType): string
     return $finalDefenseSidebarMap[$view] ?? ($view === 'overview' ? '' : $view);
 }
 
-function rdScheduleEnsureSchema(PDO $pdo): void
-{
-    $columns = [
-        'venue_id' => "ALTER TABLE `crad_research_defense_schedules` ADD venue_id INT UNSIGNED DEFAULT NULL AFTER venue",
-        'defense_end_datetime' => "ALTER TABLE `crad_research_defense_schedules` ADD defense_end_datetime DATETIME DEFAULT NULL AFTER defense_datetime",
-        'defense_type' => "ALTER TABLE `crad_research_defense_schedules` ADD defense_type VARCHAR(40) NOT NULL DEFAULT 'Pre-Oral' AFTER defense_end_datetime",
-        'finalized_by' => "ALTER TABLE `crad_research_defense_schedules` ADD finalized_by INT UNSIGNED DEFAULT NULL AFTER recorded_by",
-        'finalized_at' => "ALTER TABLE `crad_research_defense_schedules` ADD finalized_at DATETIME DEFAULT NULL AFTER finalized_by",
-    ];
-    foreach ($columns as $column => $sql) {
-        try {
-            if (!$pdo->query("SHOW COLUMNS FROM `crad_research_defense_schedules` LIKE " . $pdo->quote($column))->fetch()) {
-                $pdo->exec($sql);
-            }
-        } catch (Throwable $e) {
-            error_log('RD schedule schema column failed: ' . $column . ' ' . $e->getMessage());
-        }
-    }
-    try {
-        $legacyUnique = $pdo->query(
-            "SHOW INDEX FROM `crad_research_defense_schedules`
-             WHERE Key_name = 'uniq_rds_group_number'
-               AND Non_unique = 0"
-        )->fetch();
-        if ($legacyUnique) {
-            $pdo->exec("ALTER TABLE `crad_research_defense_schedules` DROP INDEX uniq_rds_group_number");
-        }
-    } catch (Throwable $e) {
-        error_log('RD schedule schema legacy unique cleanup failed: ' . $e->getMessage());
-    }
-    foreach ([
-        'idx_rds_group_number' => "ALTER TABLE `crad_research_defense_schedules` ADD KEY idx_rds_group_number (group_number)",
-        'idx_rds_venue_time' => "ALTER TABLE `crad_research_defense_schedules` ADD KEY idx_rds_venue_time (venue_id, defense_datetime, defense_end_datetime)",
-        'idx_rds_group_time' => "ALTER TABLE `crad_research_defense_schedules` ADD KEY idx_rds_group_time (research_group_id, defense_datetime, defense_end_datetime)",
-    ] as $index => $sql) {
-        try {
-            if (!$pdo->query("SHOW INDEX FROM `crad_research_defense_schedules` WHERE Key_name = " . $pdo->quote($index))->fetch()) {
-                $pdo->exec($sql);
-            }
-        } catch (Throwable $e) {
-            error_log('RD schedule schema index failed: ' . $index . ' ' . $e->getMessage());
-        }
-    }
-}
-
 function rdScheduleDate(string $value, string $format = 'M j, Y h:i A'): string
 {
     $time = strtotime($value);
@@ -730,47 +685,6 @@ $venueMessage = null;
 $crad = cradDb();
 if ($crad) {
     try {
-        $crad->exec(
-            "CREATE TABLE IF NOT EXISTS `crad_research_defense_schedules` (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                research_group_id INT UNSIGNED DEFAULT NULL,
-                proposal_id INT UNSIGNED DEFAULT NULL,
-                proposal_number VARCHAR(30) DEFAULT NULL,
-                group_number VARCHAR(40) NOT NULL DEFAULT '',
-                research_group VARCHAR(120) NOT NULL DEFAULT '',
-                research_title VARCHAR(255) NOT NULL DEFAULT '',
-                adviser_name VARCHAR(160) DEFAULT NULL,
-                panel_members TEXT DEFAULT NULL,
-                panel_chair VARCHAR(160) DEFAULT NULL,
-                venue VARCHAR(120) DEFAULT NULL,
-                defense_datetime DATETIME DEFAULT NULL,
-                status VARCHAR(40) NOT NULL DEFAULT 'Ready for Scheduling',
-                recorded_by INT UNSIGNED DEFAULT NULL,
-                recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                KEY idx_rds_group (research_group_id),
-                KEY idx_rds_group_number (group_number),
-                KEY idx_rds_status (status)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-        );
-
-        $crad->exec(
-            "CREATE TABLE IF NOT EXISTS `crad_research_venues` (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                venue_name VARCHAR(160) NOT NULL,
-                capacity INT UNSIGNED NOT NULL DEFAULT 0,
-                venue_type VARCHAR(80) NOT NULL DEFAULT '',
-                status VARCHAR(40) NOT NULL DEFAULT 'Available',
-                created_by INT UNSIGNED DEFAULT NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                UNIQUE KEY uniq_research_venue_name (venue_name),
-                KEY idx_research_venues_status (status)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-        );
-
         $seedVenue = $crad->prepare(
             "INSERT IGNORE INTO `crad_research_venues`
                 (venue_name, capacity, venue_type, status, created_at, updated_at)
@@ -786,7 +700,6 @@ if ($crad) {
         ] as $venueSeed) {
             $seedVenue->execute($venueSeed);
         }
-        rdScheduleEnsureSchema($crad);
     } catch (Throwable $e) {
         error_log('Research director venue table setup failed: ' . $e->getMessage());
     }
