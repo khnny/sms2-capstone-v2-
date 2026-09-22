@@ -116,7 +116,7 @@ function rcpUploadPublicUrl(array $row): string
         return '';
     }
     $stamp = strtotime((string) ($row['updated_at'] ?? $row['created_at'] ?? '')) ?: time();
-    return BASE_URL . '/uploads/college-payment/' . rawurlencode($file) . '?v=' . $stamp;
+    return BASE_URL . '/modules/crad/api/clearance-payment-file.php?id=' . (int) ($row['id'] ?? 0) . '&v=' . $stamp;
 }
 
 function rcpStatusLabel(string $status): string
@@ -208,6 +208,23 @@ function rcpExtractReferenceFromImage(string $path): string
     return rcpParseReferenceNumber(rcpOcrImageText($path));
 }
 
+function rcpPaymentImagePath(string $file): ?string
+{
+    $file = basename(str_replace('\\', '/', $file));
+    if ($file === '' || $file === '.' || $file === '..') {
+        return null;
+    }
+    foreach ([
+        ROOT_PATH . '/storage/uploads/college-payment/' . $file,
+        ROOT_PATH . '/uploads/college-payment/' . $file,
+    ] as $candidate) {
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+    return null;
+}
+
 function rcpEnsureOrFromImage(PDO $crad, array $row): array
 {
     $or = trim((string) ($row['or_number'] ?? ''));
@@ -223,7 +240,8 @@ function rcpEnsureOrFromImage(PDO $crad, array $row): array
         return $row;
     }
     @touch($lock);
-    $extracted = rcpExtractReferenceFromImage(ROOT_PATH . '/uploads/college-payment/' . $file);
+    $imagePath = rcpPaymentImagePath($file);
+    $extracted = $imagePath ? rcpExtractReferenceFromImage($imagePath) : '';
     if ($extracted === '' || strcasecmp($extracted, $or) === 0) {
         return $row;
     }
@@ -302,17 +320,17 @@ function rcpStoreUpload(int $groupId, array $file): array
         return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the collage payment.'];
     }
     $ext = $mime === 'image/png' ? 'png' : 'jpg';
-    $dir = ROOT_PATH . '/uploads/college-payment';
+    $dir = ROOT_PATH . '/storage/uploads/college-payment';
     if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
-        return ['ok' => false, 'error' => 'The college-payment upload folder could not be created on the hosting server.'];
+        return ['ok' => false, 'error' => 'The persistent college-payment storage folder could not be created on the hosting server.'];
     }
     if (!is_writable($dir)) {
-        return ['ok' => false, 'error' => 'The college-payment upload folder is not writable on the hosting server.'];
+        return ['ok' => false, 'error' => 'The persistent college-payment storage folder is not writable on the hosting server.'];
     }
     $stored = 'rcp-' . $groupId . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
     $path = $dir . '/' . $stored;
     if (!move_uploaded_file($tmp, $path)) {
-        return ['ok' => false, 'error' => 'The hosting server could not save the college payment picture.'];
+        return ['ok' => false, 'error' => 'The hosting server could not save the college payment picture in persistent storage.'];
     }
     return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $path];
 }
@@ -362,9 +380,13 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
             ':id' => (int) $existing['id'],
         ]);
         if ($old !== '' && $old !== (string) $saved['file']) {
-            $oldPath = ROOT_PATH . '/uploads/college-payment/' . $old;
-            if (is_file($oldPath)) {
-                @unlink($oldPath);
+            foreach ([
+                ROOT_PATH . '/storage/uploads/college-payment/' . $old,
+                ROOT_PATH . '/uploads/college-payment/' . $old,
+            ] as $oldPath) {
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
             }
         }
         $fresh = rcpFindById($crad, (int) $existing['id']);
@@ -508,14 +530,13 @@ function rcpPurgeDisconnectedPayments(PDO $crad): int
         return 0;
     }
 
-    $dir = ROOT_PATH . '/uploads/college-payment';
     $ids = [];
     foreach ($orphans as $row) {
         $ids[] = (int) ($row['id'] ?? 0);
         $file = basename(str_replace('\\', '/', (string) ($row['uploaded_file'] ?? '')));
         if ($file !== '' && $file !== '.' && $file !== '..') {
-            $path = $dir . '/' . $file;
-            if (is_file($path)) {
+            $path = rcpPaymentImagePath($file);
+            if ($path !== null) {
                 @unlink($path);
             }
         }
