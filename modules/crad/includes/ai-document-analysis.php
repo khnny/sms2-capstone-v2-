@@ -27,34 +27,11 @@ function rpCursorApiKey(): string
     return '';
 }
 
-function rpEnsureAiAnalysisSchema(PDO $crad): void
-{
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS `crad_research_progress_ai_analyses` (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            progress_update_id INT UNSIGNED NOT NULL,
-            attachment_id INT UNSIGNED NOT NULL DEFAULT 0,
-            milestone_name VARCHAR(180) NOT NULL DEFAULT '',
-            verdict VARCHAR(40) NOT NULL DEFAULT 'needs_revision',
-            grammar_quality VARCHAR(40) NOT NULL DEFAULT 'fair',
-            summary TEXT NOT NULL,
-            notes_json MEDIUMTEXT NOT NULL,
-            source VARCHAR(40) NOT NULL DEFAULT 'cursor',
-            analyzed_by INT UNSIGNED NOT NULL DEFAULT 0,
-            analyzed_by_name VARCHAR(180) NOT NULL DEFAULT '',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_rpai_update (progress_update_id, id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-}
-
 function rpLatestAiAnalysisForUpdate(PDO $crad, int $progressUpdateId): ?array
 {
     if ($progressUpdateId <= 0) {
         return null;
     }
-    rpEnsureAiAnalysisSchema($crad);
     $stmt = $crad->prepare(
         "SELECT *
          FROM `crad_research_progress_ai_analyses`
@@ -76,7 +53,6 @@ function rpLatestAiAnalysisForUpdate(PDO $crad, int $progressUpdateId): ?array
 
 function rpSaveAiAnalysis(PDO $crad, array $data): int
 {
-    rpEnsureAiAnalysisSchema($crad);
     $stmt = $crad->prepare(
         "INSERT INTO `crad_research_progress_ai_analyses` (
             progress_update_id, attachment_id, milestone_name, verdict, grammar_quality,

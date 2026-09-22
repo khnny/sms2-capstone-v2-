@@ -10,6 +10,9 @@ RUN apt-get update \
 
 COPY . /var/www/html/
 
+RUN rm -rf /var/www/html/.git /var/www/html/.cursor \
+    && find /var/www/html -type f \( -name '*.bak' -o -name '*.preprefix.bak' -o -name '*.sql' \) -delete
+
 WORKDIR /var/www/html/
 
 RUN test -f /var/www/html/index.php \

@@ -81,30 +81,9 @@ function smsCryptoAppKey(): string
         return $key;
     }
 
-    // 4. Fallback file path: storage/app.key if storage/keys/ was not writable
-    $altPath = ROOT_PATH . '/storage/app.key';
-    if (is_readable($altPath)) {
-        $raw = (string) file_get_contents($altPath);
-        $decoded = base64_decode(trim($raw), true);
-        if (is_string($decoded) && strlen($decoded) === 32) {
-            $key = $decoded;
-            return $key;
-        }
-    }
-    $altWritten = @file_put_contents($altPath, base64_encode($generated), LOCK_EX);
-    if ($altWritten !== false) {
-        @chmod($altPath, 0600);
-        $key = $generated;
-        return $key;
-    }
-
-    // 5. Last-resort fallback: Stable deterministic key derived from deployment context
-    // MUST NOT change between requests on read-only/restricted hosts, or decryption will fail!
-    error_log('SMS2: could not write encryption key to ' . $path . ' - using stable fallback');
-    $salt = defined('ROOT_PATH') ? ROOT_PATH : __DIR__;
-    $dbName = defined('DB_NAME') ? DB_NAME : 'sms2_db';
-    $key = hash('sha256', 'sms2_deterministic_app_key:' . $salt . ':' . $dbName, true);
-    return $key;
+    throw new RuntimeException(
+        'SMS2 encryption key is unavailable. Configure SMS2_APP_KEY or make storage/keys/app.key persistent and writable.'
+    );
 }
 
 function smsCryptoIsEncrypted(string $value): bool
@@ -124,8 +103,7 @@ function smsSecretEncrypt(string $plaintext): string
         return $plaintext;
     }
     if (!function_exists('openssl_encrypt')) {
-        error_log('SMS2: openssl_encrypt unavailable — storing secret in plaintext');
-        return $plaintext;
+        throw new RuntimeException('OpenSSL is required to encrypt application secrets.');
     }
 
     $iv = random_bytes(12);
@@ -141,8 +119,7 @@ function smsSecretEncrypt(string $plaintext): string
         16
     );
     if ($cipher === false || $tag === '') {
-        error_log('SMS2: encryption failed');
-        return $plaintext;
+        throw new RuntimeException('Application secret encryption failed.');
     }
 
     return 'sms2enc1.' . base64_encode($iv . $tag . $cipher);
@@ -157,13 +134,12 @@ function smsSecretDecrypt(string $stored): string
         return $stored;
     }
     if (!function_exists('openssl_decrypt')) {
-        error_log('SMS2: openssl_decrypt unavailable');
-        return '';
+        throw new RuntimeException('OpenSSL is required to decrypt application secrets.');
     }
 
     $blob = base64_decode(substr($stored, strlen('sms2enc1.')), true);
     if ($blob === false || strlen($blob) < 28) {
-        return '';
+        throw new RuntimeException('Stored application secret is corrupt.');
     }
     $iv = substr($blob, 0, 12);
     $tag = substr($blob, 12, 16);
@@ -177,8 +153,7 @@ function smsSecretDecrypt(string $stored): string
         $tag
     );
     if (!is_string($plain)) {
-        error_log('SMS2: secret decrypt failed (wrong app.key or corrupt ciphertext). Re-save the secret in System Settings.');
-        return '';
+        throw new RuntimeException('Stored application secret could not be decrypted. Check SMS2_APP_KEY or storage/keys/app.key.');
     }
     return $plain;
 }

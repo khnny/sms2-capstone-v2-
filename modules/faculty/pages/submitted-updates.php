@@ -648,6 +648,7 @@ $statusMeta = [
 <!-- AJAX feedback submission -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = <?= json_encode(csrfToken()) ?>;
     const initialUpdatesHash = <?= json_encode(array_map(static fn($u) => [
         'id' => (int) $u['id'],
         'status' => (string) $u['milestone_status'],
@@ -833,7 +834,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         action: action,
                         update_id: parseInt(updateId),
                         feedback_text: feedbackText || (action === 'approve' ? 'Progress approved.' : ''),
-                        submission_token: token
+                        submission_token: token,
+                        csrf_token: csrfToken
                     })
                 });
                 const result = await resp.json();

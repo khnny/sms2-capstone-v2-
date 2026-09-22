@@ -41,6 +41,7 @@ if ($method === 'POST') {
     if (is_array($decodedInput)) {
         $rpJsonInput = $decodedInput;
     }
+    requireCsrf($rpJsonInput['csrf_token'] ?? ($_POST['csrf_token'] ?? null));
 }
 $action = $_GET['action'] ?? $_POST['action'] ?? ($rpJsonInput['action'] ?? '');
 
@@ -223,8 +224,6 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId, string $adviserEm
  */
 function handleGetProgressUpdates(PDO $crad, int $adviserUserId, string $adviserEmail): void
 {
-    rpEnsureProgressAttachmentSchema($crad);
-
     $assignmentMatch = rpAdviserAssignmentMatchSql('raa2', 'rg');
     $identitySql = rpAdviserIdentitySql('raa2');
     $statusSql = rpActiveAdviserAssignmentStatusSql('raa2');

@@ -127,6 +127,7 @@ try {
                         </div>
 
                         <form id="progressUpdateForm" enctype="multipart/form-data">
+                            <?= csrfField() ?>
                             <input type="hidden" id="submission_token" name="submission_token" value="">
                             <div id="progress_form_alert" class="alert d-none" role="alert"></div>
 

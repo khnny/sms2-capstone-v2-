@@ -10,7 +10,6 @@ require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 requireAuth();
 
 $crad = cradDb();
-rpEnsureProgressAttachmentSchema($crad);
 $attachmentId = (int) ($_GET['id'] ?? 0);
 if ($attachmentId <= 0) {
     http_response_code(404);
@@ -104,7 +103,16 @@ if (!$root || !$path) {
 
 $download = (($_GET['download'] ?? '') === '1');
 $name = preg_replace('/[^a-zA-Z0-9._ -]/', '_', (string) ($attachment['file_name'] ?? 'progress-document'));
-header('Content-Type: ' . ((string) ($attachment['file_type'] ?? '') ?: 'application/octet-stream'));
+$mimeByExtension = [
+    'pdf' => 'application/pdf',
+    'doc' => 'application/msword',
+    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'jpg' => 'image/jpeg',
+    'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+];
+$extension = strtolower((string) pathinfo($name, PATHINFO_EXTENSION));
+header('Content-Type: ' . ($mimeByExtension[$extension] ?? 'application/octet-stream'));
 header('Content-Length: ' . filesize($path));
 header('Content-Disposition: ' . ($download ? 'attachment' : 'inline') . '; filename="' . addslashes($name) . '"');
 header('X-Content-Type-Options: nosniff');

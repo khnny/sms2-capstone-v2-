@@ -514,31 +514,11 @@ function rpChapterControlledMilestoneState(PDO $crad, int $milestoneId): ?array
     return null;
 }
 
-function rpEnsureProgressAttachmentSchema(PDO $crad): void
-{
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS `crad_research_progress_attachments` (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            progress_update_id INT UNSIGNED NOT NULL,
-            file_name VARCHAR(300) NOT NULL,
-            file_path VARCHAR(500) NOT NULL,
-            file_type VARCHAR(100) NOT NULL DEFAULT '',
-            file_size INT UNSIGNED NOT NULL DEFAULT 0,
-            uploaded_by INT UNSIGNED NOT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_rpa_update (progress_update_id),
-            KEY idx_rpa_uploaded (uploaded_by)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-}
-
 function rpLatestAttachmentForUpdate(PDO $crad, int $progressUpdateId): ?array
 {
     if ($progressUpdateId <= 0) {
         return null;
     }
-    rpEnsureProgressAttachmentSchema($crad);
     $stmt = $crad->prepare(
         "SELECT *
          FROM `crad_research_progress_attachments`
@@ -1274,14 +1254,6 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
     $newProgress = (float) $data['new_progress'];
     if ($newProgress < 0 || $newProgress > 100) {
         return ['success' => false, 'message' => 'Progress must be between 0 and 100'];
-    }
-
-    // Ensure the attachments table exists BEFORE opening the transaction.
-    // CREATE TABLE is DDL and causes an implicit commit in MySQL/MariaDB,
-    // which used to silently end the transaction mid-submission and crash
-    // on commit(), leaving the client without a success response.
-    if (!empty($data['uploaded_document']) && is_array($data['uploaded_document'])) {
-        rpEnsureProgressAttachmentSchema($crad);
     }
 
     try {

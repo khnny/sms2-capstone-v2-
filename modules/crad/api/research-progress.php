@@ -41,6 +41,8 @@ if ($method === 'POST') {
     if (is_array($decodedInput)) {
         $rpJsonInput = $decodedInput;
     }
+
+    requireCsrf($rpJsonInput['csrf_token'] ?? ($_POST['csrf_token'] ?? null));
 }
 $action = $_GET['action'] ?? $_POST['action'] ?? ($rpJsonInput['action'] ?? '');
 

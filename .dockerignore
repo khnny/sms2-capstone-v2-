@@ -1,0 +1,11 @@
+.git
+.cursor
+*.bak
+*.preprefix.bak
+*.sql
+config/local.php
+storage/backups/*
+storage/keys/*
+storage/uploads/*
+storage/logs/*
+*.log

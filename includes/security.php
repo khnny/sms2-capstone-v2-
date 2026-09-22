@@ -96,8 +96,12 @@ function requireCsrf(?string $token = null): void
         http_response_code(403);
         if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')
             || str_contains($_SERVER['CONTENT_TYPE'] ?? '', 'application/json')) {
-            header('Content-Type: application/json');
-            echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error' => 'csrf_invalid',
+                'message' => 'Invalid CSRF token.',
+            ]);
         } else {
             echo 'Forbidden: invalid CSRF token.';
         }
@@ -155,19 +159,13 @@ function smsSetting(string $key, string $default = ''): string
                     }
                 } else {
                     $dec = smsSecretDecrypt($raw);
-                    // If decryption fails, do NOT wipe the database row. Keep the database
-                    // value safe so secrets are not permanently lost on deployment glitches.
-                    if ($dec === '') {
-                        error_log("SMS2: could not decrypt setting '{$key}'. Check SMS2_APP_KEY or storage/keys/app.key.");
-                        $raw = '';
-                    } else {
-                        $raw = $dec;
-                    }
+                    $raw = $dec;
                 }
             }
         }
         $cache[$key] = $raw;
     } catch (Throwable $e) {
+        error_log("SMS2 smsSetting failed for '{$key}': " . $e->getMessage());
         $cache[$key] = $default;
     }
 
@@ -187,12 +185,12 @@ function smsSetSetting(string $key, string $value): bool
         return false;
     }
 
-    $storeValue = $value;
-    if (smsIsEncryptedSettingKey($key) && $value !== '') {
-        $storeValue = smsSecretEncrypt($value);
-    }
-
     try {
+        $storeValue = $value;
+        if (smsIsEncryptedSettingKey($key) && $value !== '') {
+            $storeValue = smsSecretEncrypt($value);
+        }
+
         $stmt = $pdo->prepare(
             'INSERT INTO `sms2_system_settings` (setting_key, setting_value) VALUES (?, ?)
              ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'

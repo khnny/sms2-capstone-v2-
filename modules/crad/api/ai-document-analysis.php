@@ -42,9 +42,6 @@ try {
     exit;
 }
 
-rpEnsureProgressAttachmentSchema($crad);
-rpEnsureAiAnalysisSchema($crad);
-
 $updateId = (int) ($decodedInput['update_id'] ?? 0);
 if ($updateId <= 0) {
     http_response_code(400);
