@@ -80,6 +80,10 @@ function rscEnsureSchema(?PDO $crad = null): void
     if (!$crad instanceof PDO) {
         return;
     }
+    // Schema is deployment-owned by modules/crad/database/crad_db.sql.
+    // Do not run CREATE/ALTER TABLE during a web request.
+    return;
+
     // DDL implicitly commits MySQL transactions; skip while a txn is open.
     if ($crad->inTransaction()) {
         return;

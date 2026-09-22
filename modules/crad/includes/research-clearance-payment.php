@@ -21,6 +21,10 @@ function rcpStageList(): array
 
 function rcpEnsureSchema(PDO $crad): void
 {
+    // Schema is deployment-owned by modules/crad/database/crad_db.sql.
+    // Do not run CREATE/ALTER TABLE during a web request.
+    return;
+
     $crad->exec(
         "CREATE TABLE IF NOT EXISTS `crad_research_clearance_payments` (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
