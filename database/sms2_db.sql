@@ -244,14 +244,17 @@ INSERT INTO `sms2_role_permissions` (`id`, `role_key`, `module_key`, `granted`, 
 --
 
 CREATE TABLE `sms2_security_otps` (
-  `id` int(10) UNSIGNED NOT NULL,
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` int(10) UNSIGNED NOT NULL,
   `purpose` varchar(40) NOT NULL,
   `code_hash` char(64) NOT NULL,
   `module_key` varchar(60) DEFAULT NULL,
   `expires_at` datetime NOT NULL,
   `used_at` datetime DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_otp_user` (`user_id`),
+  KEY `idx_otp_expires` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

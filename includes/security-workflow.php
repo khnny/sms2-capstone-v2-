@@ -39,6 +39,20 @@ function smsEnsureSecurityTables(): void
         error_log('smsEnsureSecurityTables security_otps: ' . $e->getMessage());
     }
 
+    // phpMyAdmin dumps often omit AUTO_INCREMENT on create — self-heal like login_throttles.
+    foreach ([
+        'ALTER TABLE `sms2_security_otps` ADD PRIMARY KEY (`id`)',
+        'ALTER TABLE `sms2_security_otps` MODIFY `id` INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'ALTER TABLE `sms2_security_otps` ADD KEY `idx_otp_user` (`user_id`)',
+        'ALTER TABLE `sms2_security_otps` ADD KEY `idx_otp_expires` (`expires_at`)',
+    ] as $repairSql) {
+        try {
+            $pdo->exec($repairSql);
+        } catch (Throwable $e) {
+            // Already correct / no ALTER privilege
+        }
+    }
+
     try {
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS `sms2_password_reset_requests` (
@@ -141,10 +155,15 @@ function smsCreateOtp(int $userId, string $purpose, ?string $moduleKey = null, i
     $code = (string) random_int(100000, 999999);
     $hash = hash('sha256', $code);
 
-    $pdo->prepare(
-        'INSERT INTO `sms2_security_otps` (user_id, purpose, code_hash, module_key, expires_at)
-         VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))'
-    )->execute([$userId, $purpose, $hash, $moduleKey, $ttlMinutes]);
+    try {
+        $pdo->prepare(
+            'INSERT INTO `sms2_security_otps` (user_id, purpose, code_hash, module_key, expires_at)
+             VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))'
+        )->execute([$userId, $purpose, $hash, $moduleKey, $ttlMinutes]);
+    } catch (Throwable $e) {
+        error_log('smsCreateOtp: ' . $e->getMessage());
+        return null;
+    }
 
     return $code;
 }
