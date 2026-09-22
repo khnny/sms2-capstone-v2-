@@ -218,14 +218,13 @@ function rscPurgeDisconnectedClearances(PDO $crad): int
         return 0;
     }
 
-    $dir = ROOT_PATH . '/uploads/research-clearance';
     $ids = [];
     foreach ($orphans as $row) {
         $ids[] = (int) ($row['id'] ?? 0);
         $file = basename(str_replace('\\', '/', (string) ($row['uploaded_file'] ?? '')));
         if ($file !== '' && $file !== '.' && $file !== '..') {
-            $path = $dir . '/' . $file;
-            if (is_file($path)) {
+            $path = rscUploadedImagePath($file);
+            if ($path !== null) {
                 @unlink($path);
             }
         }
@@ -892,8 +891,8 @@ function rscStudentUploadSigned(PDO $crad, array $clearance, array $file = []): 
 
     $oldFile = basename(str_replace('\\', '/', trim((string) ($clearance['uploaded_file'] ?? ''))));
     if ($oldFile !== '' && $oldFile !== (string) $saved['file']) {
-        $oldPath = ROOT_PATH . '/uploads/research-clearance/' . $oldFile;
-        if (is_file($oldPath)) {
+        $oldPath = rscUploadedImagePath($oldFile);
+        if ($oldPath !== null) {
             @unlink($oldPath);
         }
     }
@@ -956,8 +955,8 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
 
     $oldFile = basename(str_replace('\\', '/', trim((string) ($clearance['uploaded_file'] ?? ''))));
     if ($oldFile !== '' && $oldFile !== (string) $saved['file']) {
-        $oldPath = ROOT_PATH . '/uploads/research-clearance/' . $oldFile;
-        if (is_file($oldPath)) {
+        $oldPath = rscUploadedImagePath($oldFile);
+        if ($oldPath !== null) {
             @unlink($oldPath);
         }
     }
@@ -1184,7 +1183,26 @@ function rscUploadPublicUrl(array $row): string
         return '';
     }
     $stamp = strtotime((string) ($row['uploaded_at'] ?? '')) ?: time();
-    return BASE_URL . '/uploads/research-clearance/' . rawurlencode($file) . '?v=' . $stamp;
+    return BASE_URL . '/modules/crad/api/research-clearance-file.php?id=' . (int) ($row['id'] ?? 0) . '&v=' . $stamp;
+}
+
+function rscUploadedImagePath(string $file): ?string
+{
+    $normalized = str_replace('\\', '/', trim($file));
+    $basename = basename($normalized);
+    if ($basename === '' || $basename === '.' || $basename === '..') {
+        return null;
+    }
+    $candidates = [
+        ROOT_PATH . '/storage/uploads/research-clearance/' . $basename,
+        ROOT_PATH . '/uploads/research-clearance/' . $basename,
+    ];
+    foreach ($candidates as $candidate) {
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+    return null;
 }
 
 function rscStoreUpload(int $clearanceId, array $file): array
@@ -1208,14 +1226,17 @@ function rscStoreUpload(int $clearanceId, array $file): array
     if (!in_array($ext, ['png', 'jpg', 'jpeg'], true)) {
         return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the Research Services Clearance form.'];
     }
-    $dir = ROOT_PATH . '/uploads/research-clearance';
-    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-        return ['ok' => false, 'error' => 'Could not store the uploaded clearance.'];
+    $dir = ROOT_PATH . '/storage/uploads/research-clearance';
+    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
+        return ['ok' => false, 'error' => 'The persistent clearance storage folder could not be created on the hosting server.'];
+    }
+    if (!is_writable($dir)) {
+        return ['ok' => false, 'error' => 'The persistent clearance storage folder is not writable on the hosting server.'];
     }
     $stored = 'rsc-' . $clearanceId . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
     $path = $dir . '/' . $stored;
     if (!move_uploaded_file($tmp, $path)) {
-        return ['ok' => false, 'error' => 'Could not store the uploaded clearance.'];
+        return ['ok' => false, 'error' => 'The hosting server could not save the uploaded clearance.'];
     }
     return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $path];
 }
@@ -1337,8 +1358,8 @@ function rscApplyUploadedSignatures(array $row): array
     if ($file === '' || $file === '.' || $file === '..' || !defined('ROOT_PATH')) {
         return $row;
     }
-    $path = ROOT_PATH . '/uploads/research-clearance/' . $file;
-    if (!is_file($path)) {
+    $path = rscUploadedImagePath($file);
+    if ($path === null) {
         return $row;
     }
     try {
@@ -1362,8 +1383,8 @@ function rscPersistUploadedSignatures(PDO $crad, array $row): array
     $file = basename(str_replace('\\', '/', trim((string) ($row['uploaded_file'] ?? ''))));
     $hydrated = $row;
     if ($file !== '' && $file !== '.' && $file !== '..' && defined('ROOT_PATH')) {
-        $path = ROOT_PATH . '/uploads/research-clearance/' . $file;
-        if (is_file($path)) {
+        $path = rscUploadedImagePath($file);
+        if ($path !== null) {
             try {
                 $extracted = rscExtractPhysicalSignatures($path, $row);
                 if (trim((string) ($extracted['mis'] ?? '')) !== '') {
