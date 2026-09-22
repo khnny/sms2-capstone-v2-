@@ -22,6 +22,37 @@ function smsCryptoAppKey(): string
         return $key;
     }
 
+    // 1. Check explicit configuration / environment variable
+    $configuredKey = '';
+    if (defined('SMS2_APP_KEY') && is_string(SMS2_APP_KEY) && SMS2_APP_KEY !== '') {
+        $configuredKey = SMS2_APP_KEY;
+    } elseif (function_exists('sms2_env')) {
+        $configuredKey = (string) sms2_env('SMS2_APP_KEY', sms2_env('APP_KEY', ''));
+    } else {
+        $configuredKey = (string) (getenv('SMS2_APP_KEY') ?: (getenv('APP_KEY') ?: ''));
+    }
+
+    if ($configuredKey !== '') {
+        if (strlen($configuredKey) === 32) {
+            $key = $configuredKey;
+            return $key;
+        }
+        $decoded = base64_decode(trim($configuredKey), true);
+        if (is_string($decoded) && strlen($decoded) === 32) {
+            $key = $decoded;
+            return $key;
+        }
+        // If 64 hex characters
+        if (strlen($configuredKey) === 64 && ctype_xdigit($configuredKey)) {
+            $key = (string) hex2bin($configuredKey);
+            return $key;
+        }
+        // Arbitrary passphrase - hash to 32 bytes
+        $key = hash('sha256', $configuredKey, true);
+        return $key;
+    }
+
+    // 2. Primary file path: storage/keys/app.key
     $path = smsCryptoKeyPath();
     $dir = dirname($path);
     if (!is_dir($dir)) {
@@ -30,7 +61,6 @@ function smsCryptoAppKey(): string
 
     if (is_readable($path)) {
         $raw = (string) file_get_contents($path);
-        // Accept raw 32 bytes or base64 of 32 bytes
         if (strlen($raw) === 32) {
             $key = $raw;
             return $key;
@@ -42,16 +72,38 @@ function smsCryptoAppKey(): string
         }
     }
 
+    // 3. Try to generate and write primary key file
     $generated = random_bytes(32);
     $written = @file_put_contents($path, base64_encode($generated), LOCK_EX);
-    if ($written === false) {
-        error_log('SMS2: could not write encryption key to ' . $path);
-        // Ephemeral fallback for this request only (not ideal — log loudly)
+    if ($written !== false) {
+        @chmod($path, 0600);
         $key = $generated;
         return $key;
     }
-    @chmod($path, 0600);
-    $key = $generated;
+
+    // 4. Fallback file path: storage/app.key if storage/keys/ was not writable
+    $altPath = ROOT_PATH . '/storage/app.key';
+    if (is_readable($altPath)) {
+        $raw = (string) file_get_contents($altPath);
+        $decoded = base64_decode(trim($raw), true);
+        if (is_string($decoded) && strlen($decoded) === 32) {
+            $key = $decoded;
+            return $key;
+        }
+    }
+    $altWritten = @file_put_contents($altPath, base64_encode($generated), LOCK_EX);
+    if ($altWritten !== false) {
+        @chmod($altPath, 0600);
+        $key = $generated;
+        return $key;
+    }
+
+    // 5. Last-resort fallback: Stable deterministic key derived from deployment context
+    // MUST NOT change between requests on read-only/restricted hosts, or decryption will fail!
+    error_log('SMS2: could not write encryption key to ' . $path . ' - using stable fallback');
+    $salt = defined('ROOT_PATH') ? ROOT_PATH : __DIR__;
+    $dbName = defined('DB_NAME') ? DB_NAME : 'sms2_db';
+    $key = hash('sha256', 'sms2_deterministic_app_key:' . $salt . ':' . $dbName, true);
     return $key;
 }
 

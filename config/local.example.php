@@ -19,6 +19,10 @@
 // define('SMS2_SMTP_USERNAME', 'your.account@gmail.com');
 // define('SMS2_SMTP_PASSWORD', 'xxxx xxxx xxxx xxxx');
 
+// Optional: Fixed 32-byte or base64 encryption key for secrets (AES-256).
+// Keeps encrypted secrets (Turnstile keys, SMTP passwords) persistent across redeployments.
+// define('SMS2_APP_KEY', '');
+
 define('SMS2_LOCAL_BASE_URL', '/sms2_system');
 
 // --- Main database (env-equivalent: DB_HOST, DB_DATABASE, …) ---

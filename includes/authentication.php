@@ -149,6 +149,32 @@ function isAuthenticated(): bool
 function requireAuth(): void
 {
     if (!isAuthenticated()) {
+        // Detect AJAX / fetch / API requests so we return JSON 401
+        // instead of an HTML redirect.  This prevents the "phantom
+        // success" bug where fetch() follows 302→200 (login page HTML)
+        // and the client-side JS misinterprets it as a successful action.
+        $isApiRequest = (
+            (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+                && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (!empty($_SERVER['HTTP_ACCEPT'])
+                && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+            || ($_SERVER['REQUEST_METHOD'] === 'POST'
+                && !empty($_SERVER['CONTENT_TYPE'])
+                && (strpos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') !== false
+                    || strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false))
+        );
+
+        if ($isApiRequest) {
+            http_response_code(401);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error'   => 'session_expired',
+                'message' => 'Your session has expired. Please log in again.',
+            ]);
+            exit;
+        }
+
         require_once __DIR__ . '/module-controls.php';
         if (function_exists('smsIsSystemInMaintenance') && smsIsSystemInMaintenance()) {
             header('Location: ' . BASE_URL . '/account/maintenance.php');

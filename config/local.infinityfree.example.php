@@ -9,6 +9,9 @@
 
 // define('SMS2_DEPLOY_TOKEN', 'YOUR_DEPLOY_TOKEN');
 
+// Optional: Fixed 32-byte or base64 encryption key for secrets (AES-256).
+// define('SMS2_APP_KEY', '');
+
 // Auto-detect URL (blank = htdocs root)
 // define('BASE_URL', '');
 

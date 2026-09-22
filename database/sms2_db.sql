@@ -374,7 +374,7 @@ INSERT INTO `sms2_system_settings` (`setting_key`, `setting_value`, `updated_at`
 ('module_maintenance_student_portal', '0', '2026-09-20 22:35:46'),
 ('password_expiry_days', '0', '2026-07-22 22:24:44'),
 ('require_password_change_first_login', '0', '2026-07-22 22:24:44'),
-('session_timeout_minutes', '2', '2026-09-21 02:07:26'),
+('session_timeout_minutes', '30', '2026-09-21 02:07:26'),
 ('smtp_encryption', 'tls', '2026-07-23 10:33:25'),
 ('smtp_host', 'smtp.gmail.com', '2026-07-23 10:51:48'),
 ('smtp_password', 'sms2enc1.Oa0f+lo0nzQC028oI5zSiNa6z6C83V62Rv132wC9nACe36djJjr19CcL9Bs=', '2026-09-21 00:25:26'),

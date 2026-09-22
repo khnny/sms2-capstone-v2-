@@ -59,9 +59,44 @@ if (!$allowed) {
     exit;
 }
 
+// Resolve the file path in a cross-platform way.  The DB may contain:
+// (a) an absolute path that matches the current server (same OS/root),
+// (b) stored_subdir + stored_name columns (best-practice relative), or
+// (c) a Windows absolute path deployed to Linux (or vice-versa).
 $root = realpath(smsUploadRoot());
-$path = realpath((string) $attachment['file_path']);
-if (!$root || !$path || strpos($path, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($path)) {
+$path = false;
+
+// Strategy 1: Try the stored file_path directly (works if same server).
+if (!empty($attachment['file_path'])) {
+    $candidate = realpath((string) $attachment['file_path']);
+    if ($candidate && $root && strpos($candidate, $root . DIRECTORY_SEPARATOR) === 0 && is_file($candidate)) {
+        $path = $candidate;
+    }
+}
+
+// Strategy 2: Reconstruct from stored_subdir + stored_name (cross-platform).
+if (!$path && !empty($attachment['stored_name'])) {
+    $subdir = trim((string) ($attachment['stored_subdir'] ?? ''), '/\\');
+    $candidate = $root . '/' . ($subdir !== '' ? $subdir . '/' : '') . $attachment['stored_name'];
+    $candidate = realpath($candidate);
+    if ($candidate && $root && strpos($candidate, $root . DIRECTORY_SEPARATOR) === 0 && is_file($candidate)) {
+        $path = $candidate;
+    }
+}
+
+// Strategy 3: Extract relative path from a Windows absolute path on Linux.
+if (!$path && !empty($attachment['file_path'])) {
+    $fp = str_replace('\\', '/', (string) $attachment['file_path']);
+    // Strip everything up to and including 'storage/uploads/'
+    if (preg_match('#storage/uploads/(.+)$#i', $fp, $m)) {
+        $candidate = realpath($root . '/' . $m[1]);
+        if ($candidate && $root && strpos($candidate, $root . DIRECTORY_SEPARATOR) === 0 && is_file($candidate)) {
+            $path = $candidate;
+        }
+    }
+}
+
+if (!$root || !$path) {
     http_response_code(404);
     echo 'Document not found.';
     exit;

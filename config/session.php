@@ -6,7 +6,16 @@
 declare(strict_types=1);
 
 if (session_status() === PHP_SESSION_NONE) {
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    // Detect HTTPS even behind reverse proxies (Cloudflare, Nginx, load
+    // balancers) that terminate SSL at the edge and forward plain HTTP.
+    $secure = (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])
+            && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+        || (!empty($_SERVER['HTTP_CF_VISITOR'])
+            && strpos($_SERVER['HTTP_CF_VISITOR'], '"https"') !== false)
+        || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443)
+    );
 
     session_name('SMS2SESSID');
 
@@ -27,9 +36,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-/** Idle timeout in seconds (default 2 minutes). */
+/** Idle timeout in seconds (default 30 minutes). */
 if (!defined('SMS_SESSION_IDLE_SECONDS')) {
-    define('SMS_SESSION_IDLE_SECONDS', 2 * 60);
+    define('SMS_SESSION_IDLE_SECONDS', 30 * 60);
 }
 
 /**
@@ -44,9 +53,9 @@ function smsEnforceSessionTimeout(): void
     $now = time();
     $last = (int) ($_SESSION['last_activity'] ?? $now);
 
-    $idleMinutes = 2;
+    $idleMinutes = 30;
     if (function_exists('smsSetting')) {
-        $idleMinutes = max(1, (int) smsSetting('session_timeout_minutes', '2'));
+        $idleMinutes = max(1, (int) smsSetting('session_timeout_minutes', '30'));
     } elseif (defined('SMS_SESSION_IDLE_SECONDS')) {
         $idleMinutes = (int) max(1, SMS_SESSION_IDLE_SECONDS / 60);
     }
@@ -61,6 +70,29 @@ function smsEnforceSessionTimeout(): void
         session_destroy();
 
         if (!headers_sent()) {
+            // Return JSON for AJAX/fetch/API requests instead of HTML redirect.
+            $isApiRequest = (
+                (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+                    && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+                || (!empty($_SERVER['HTTP_ACCEPT'])
+                    && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                || (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST'
+                    && !empty($_SERVER['CONTENT_TYPE'])
+                    && (strpos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') !== false
+                        || strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false))
+            );
+
+            if ($isApiRequest) {
+                http_response_code(401);
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode([
+                    'success' => false,
+                    'error'   => 'session_expired',
+                    'message' => 'Your session has expired. Please log in again.',
+                ]);
+                exit;
+            }
+
             require_once __DIR__ . '/config.php';
             header('Location: ' . BASE_URL . '/login/login.php?timeout=1');
             exit;

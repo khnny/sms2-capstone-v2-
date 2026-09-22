@@ -581,20 +581,20 @@ function rpAdviserApprovedChapter(PDO $crad, int $groupId, int $chapter): ?array
          WHERE rpu.research_group_id = :gid
            AND rpu.milestone_status IN ('Submitted for Review', 'Approved')
            AND rm.milestone_order = :chapter
-           AND LOWER(TRIM(rm.milestone_name)) = :chapter_name
+           AND LOWER(TRIM(rm.milestone_name)) LIKE :chapter_name
            AND rpu.id = (
                 SELECT rpu2.id
                 FROM `crad_research_progress_updates` rpu2
                 INNER JOIN `crad_research_milestones` rm2 ON rm2.id = rpu2.milestone_id
                 WHERE rpu2.research_group_id = :gid2
                   AND rm2.milestone_order = :chapter2
-                  AND LOWER(TRIM(rm2.milestone_name)) = :chapter_name2
+                  AND LOWER(TRIM(rm2.milestone_name)) LIKE :chapter_name2
                 ORDER BY rpu2.submitted_at DESC, rpu2.id DESC
                 LIMIT 1
            )
          LIMIT 1"
     );
-    $chapterName = 'chapter ' . $chapter;
+    $chapterName = 'chapter ' . $chapter . '%';
     $stmt->execute([
         ':gid' => $groupId,
         ':chapter' => $chapter,

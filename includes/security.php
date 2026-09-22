@@ -155,16 +155,10 @@ function smsSetting(string $key, string $default = ''): string
                     }
                 } else {
                     $dec = smsSecretDecrypt($raw);
-                    // Wrong app.key / corrupt ciphertext → wipe so UI forces re-entry
+                    // If decryption fails, do NOT wipe the database row. Keep the database
+                    // value safe so secrets are not permanently lost on deployment glitches.
                     if ($dec === '') {
-                        try {
-                            $upd = $pdo->prepare(
-                                'UPDATE `sms2_system_settings` SET setting_value = ? WHERE setting_key = ?'
-                            );
-                            $upd->execute(['', $key]);
-                        } catch (Throwable $e) {
-                            // ignore — still serve empty this request
-                        }
+                        error_log("SMS2: could not decrypt setting '{$key}'. Check SMS2_APP_KEY or storage/keys/app.key.");
                         $raw = '';
                     } else {
                         $raw = $dec;

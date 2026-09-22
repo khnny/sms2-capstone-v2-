@@ -701,6 +701,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // Session expired: server returned JSON 401.
+            if (response.status === 401 && result.error === 'session_expired') {
+                showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?><strong>Session expired.</strong> ' + (result.message || 'Please log in again and re-submit.'));
+                restoreSubmitButton();
+                setTimeout(function () {
+                    window.location.href = '<?= BASE_URL ?>/login/login.php?timeout=1';
+                }, 3000);
+                return;
+            }
+
             if (!response.ok) {
                 showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>' + (result.message || 'Failed to submit progress update. Please try again.'));
                 restoreSubmitButton();
@@ -732,17 +742,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Submission error:', error);
-            const message = error.message === 'invalid_success_response'
-                ? '<?= smsIcon('check-circle', ['class' => 'me-2']) ?><strong>Done Sent.</strong> The update was submitted, but the confirmation response could not be read. Redirecting...'
-                : '<?= smsIcon('wifi', ['class' => 'me-2']) ?>Network error. Please check your connection and try again.';
-            showFormAlert(error.message === 'invalid_success_response' ? 'success' : 'danger', message);
+
+            // Session expired: the server now returns JSON 401, so the
+            // normal response-handler above will already show an error.
+            // But if for any reason we land here with the old
+            // 'invalid_success_response' (non-JSON 200 from login page
+            // redirect), treat it as a session-timeout error — NOT a
+            // success.
             if (error.message === 'invalid_success_response') {
-                setSubmittedState();
+                showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?><strong>Session expired.</strong> Your session timed out before the submission could be saved. Please log in again and re-submit your progress update.');
+                restoreSubmitButton();
                 setTimeout(function () {
-                    window.location.href = '<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php';
-                }, 1800);
+                    window.location.href = '<?= BASE_URL ?>/login/login.php?timeout=1';
+                }, 3000);
                 return;
             }
+
+            showFormAlert('danger', '<?= smsIcon('wifi', ['class' => 'me-2']) ?>Network error. Please check your connection and try again.');
             restoreSubmitButton();
         }
     });
