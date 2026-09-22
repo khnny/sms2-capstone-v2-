@@ -1,0 +1,52 @@
+name: Deploy to HostForge
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      HOSTFORGE_WORKSPACE_ID: ${{ vars.HOSTFORGE_WORKSPACE_ID }}
+      HOSTFORGE_PROJECT_ID: ${{ vars.HOSTFORGE_PROJECT_ID }}
+      HOSTFORGE_APPLICATION_ID: ${{ vars.HOSTFORGE_APPLICATION_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install HostForge CLI
+        run: npm install --global @hostforge/cli
+
+      - name: Authenticate HostForge CLI
+        run: hostforge auth token "${{ secrets.HOSTFORGE_TOKEN }}"
+
+      - name: Deploy production application
+        run: |
+          test -n "$HOSTFORGE_WORKSPACE_ID"
+          test -n "$HOSTFORGE_PROJECT_ID"
+          test -n "$HOSTFORGE_APPLICATION_ID"
+          hostforge application deploy "$HOSTFORGE_APPLICATION_ID" \
+            --project "$HOSTFORGE_PROJECT_ID" \
+            --workspace "$HOSTFORGE_WORKSPACE_ID" \
+            --environment production \
+            --json > deployment.json
+
+      - name: Upload deployment result
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostforge-deployment-result
+          path: deployment.json
+          if-no-files-found: error
