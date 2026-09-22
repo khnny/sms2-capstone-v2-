@@ -66,8 +66,6 @@ $updateIdFilter  = isset($_GET['update_id'])    ? (int) $_GET['update_id']    : 
 $statusFilter    = $_GET['status'] ?? 'all';
 
 $plan = rpGetResearchPlan($crad, $groupId);
-rpEnsureProgressAttachmentSchema($crad);
-rpEnsureAiAnalysisSchema($crad);
 
 $whereConditions = ["rpu.research_group_id = ?"];
 $params = [$groupId];
