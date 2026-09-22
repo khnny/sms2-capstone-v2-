@@ -210,14 +210,22 @@ function rcpExtractReferenceFromImage(string $path): string
 
 function rcpPaymentImagePath(string $file): ?string
 {
-    $file = basename(str_replace('\\', '/', $file));
+    $normalized = str_replace('\\', '/', trim($file));
+    $file = basename($normalized);
     if ($file === '' || $file === '.' || $file === '..') {
         return null;
     }
-    foreach ([
+    $candidates = [
         ROOT_PATH . '/storage/uploads/college-payment/' . $file,
         ROOT_PATH . '/uploads/college-payment/' . $file,
-    ] as $candidate) {
+    ];
+    if (preg_match('#(?:^|/)storage/uploads/college-payment/([^/]+)$#i', $normalized, $match)) {
+        $candidates[] = ROOT_PATH . '/storage/uploads/college-payment/' . basename($match[1]);
+    }
+    if (preg_match('#(?:^|/)uploads/college-payment/([^/]+)$#i', $normalized, $match)) {
+        $candidates[] = ROOT_PATH . '/uploads/college-payment/' . basename($match[1]);
+    }
+    foreach ($candidates as $candidate) {
         if (is_file($candidate)) {
             return $candidate;
         }

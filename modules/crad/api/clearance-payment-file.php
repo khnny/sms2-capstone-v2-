@@ -41,6 +41,7 @@ if ($file === '' || $file === '.' || $file === '..') {
 
 $path = rcpPaymentImagePath($file);
 if ($path === null) {
+    error_log('RCP payment image missing: id=' . $paymentId . ' file=' . $file);
     http_response_code(404);
     exit('File not found.');
 }
@@ -49,6 +50,7 @@ $info = @getimagesize($path);
 $mime = strtolower((string) ($info['mime'] ?? ''));
 $allowedMimes = ['image/png' => 'png', 'image/jpeg' => 'jpg'];
 if (!isset($allowedMimes[$mime])) {
+    error_log('RCP payment image invalid: id=' . $paymentId . ' path=' . $path);
     http_response_code(415);
     exit('Unsupported file type.');
 }
