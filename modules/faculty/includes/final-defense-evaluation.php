@@ -5,49 +5,6 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
 
-function finalDefenseEnsureSchema(PDO $crad): void
-{
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS `crad_final_defense_evaluations` (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            defense_schedule_id INT UNSIGNED NOT NULL,
-            research_group_id INT UNSIGNED DEFAULT NULL,
-            panel_user_id INT UNSIGNED NOT NULL,
-            panel_name VARCHAR(150) NOT NULL DEFAULT '',
-            content_score DECIMAL(5,2) NOT NULL,
-            methodology_score DECIMAL(5,2) NOT NULL,
-            references_score DECIMAL(5,2) NOT NULL,
-            format_score DECIMAL(5,2) NOT NULL,
-            defense_score DECIMAL(5,2) NOT NULL DEFAULT 0,
-            remarks TEXT DEFAULT NULL,
-            result ENUM('APPROVED','APPROVED WITH REVISION','FAILED') NOT NULL,
-            overall_score DECIMAL(5,2) NOT NULL,
-            status VARCHAR(30) NOT NULL DEFAULT 'Submitted',
-            submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            UNIQUE KEY uniq_final_panel_submission (defense_schedule_id, panel_user_id),
-            KEY idx_final_group (research_group_id),
-            KEY idx_final_panel (panel_user_id),
-            KEY idx_final_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-    $idColumn = $crad->query("SHOW COLUMNS FROM `crad_final_defense_evaluations` LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
-    if ($idColumn && stripos((string) ($idColumn['Extra'] ?? ''), 'auto_increment') === false) {
-        $crad->exec("ALTER TABLE `crad_final_defense_evaluations` MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT");
-    }
-    try {
-        if (!$crad->query("SHOW COLUMNS FROM `crad_final_defense_evaluations` LIKE 'defense_score'")->fetch()) {
-            $crad->exec(
-                "ALTER TABLE `crad_final_defense_evaluations`
-                 ADD COLUMN defense_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score"
-            );
-        }
-    } catch (Throwable $e) {
-        // column may already exist
-    }
-}
-
 function finalDefenseRequirePanelMember(): void
 {
     requireAuth();
@@ -188,7 +145,6 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
 
 function finalDefenseRows(PDO $crad, bool $history = false): array
 {
-    finalDefenseEnsureSchema($crad);
     $panelId = finalDefenseCurrentPanelId($crad);
     $evaluationFilter = $history ? 'fde.id IS NOT NULL' : 'fde.id IS NULL';
 

@@ -292,49 +292,6 @@ function panelEvaluationTotalMax(): float
     return $total;
 }
 
-function panelEnsureEvaluationSchema(?PDO $crad = null): void
-{
-    $crad = $crad ?: panelDb();
-    if (!$crad instanceof PDO) {
-        return;
-    }
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS `crad_preoral_defense_evaluations` (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            defense_schedule_id INT UNSIGNED NOT NULL,
-            research_group_id INT UNSIGNED DEFAULT NULL,
-            panel_user_id INT UNSIGNED NOT NULL,
-            panel_name VARCHAR(150) NOT NULL DEFAULT '',
-            content_score DECIMAL(5,2) NOT NULL,
-            methodology_score DECIMAL(5,2) NOT NULL,
-            references_score DECIMAL(5,2) NOT NULL,
-            format_score DECIMAL(5,2) NOT NULL,
-            defense_score DECIMAL(5,2) NOT NULL DEFAULT 0,
-            remarks TEXT DEFAULT NULL,
-            result ENUM('APPROVED','APPROVED WITH REVISION','FAILED') NOT NULL,
-            overall_score DECIMAL(5,2) NOT NULL,
-            status VARCHAR(30) NOT NULL DEFAULT 'Submitted',
-            submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            UNIQUE KEY uniq_preoral_panel_submission (defense_schedule_id, panel_user_id),
-            KEY idx_preoral_group (research_group_id),
-            KEY idx_preoral_panel (panel_user_id),
-            KEY idx_preoral_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-    try {
-        if (!$crad->query("SHOW COLUMNS FROM `crad_preoral_defense_evaluations` LIKE 'defense_score'")->fetch()) {
-            $crad->exec(
-                "ALTER TABLE `crad_preoral_defense_evaluations`
-                 ADD COLUMN defense_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score"
-            );
-        }
-    } catch (Throwable $e) {
-        // keep going if the column already exists
-    }
-}
-
 function panelFormatDate(?string $value, string $format = 'M j, Y h:i A'): string
 {
     $timestamp = $value ? strtotime($value) : false;
@@ -402,8 +359,6 @@ function panelSubmitEvaluation(int $scheduleId, array $data): array
     if (!$crad instanceof PDO) {
         return ['ok' => false, 'error' => 'CRAD database unavailable.'];
     }
-    panelEnsureEvaluationSchema($crad);
-
     $defense = panelDefenseById($scheduleId, false);
     if (!$defense) {
         return ['ok' => false, 'error' => 'Access denied or evaluation already submitted.'];
@@ -680,7 +635,6 @@ function panelRenderHistoryRows(array $rows): void
 function renderPanelDefensePage(string $mode, string $message = '', string $error = ''): void
 {
     panelRequirePanelMember();
-    panelEnsureEvaluationSchema();
     $id = (int) ($_GET['id'] ?? 0);
     $defense = $id > 0 ? panelDefenseById($id, true) : null;
     if ($mode === 'details' && $id <= 0) {
