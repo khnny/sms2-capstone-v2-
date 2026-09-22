@@ -296,7 +296,7 @@ function cradEnsurePanelNotificationDeleteTrigger(PDO $pdo): void
 
         $pdo->exec("
             CREATE TRIGGER trg_research_groups_panel_notifications_after_delete
-            AFTER DELETE ON research_groups
+            AFTER DELETE ON `crad_research_groups`
             FOR EACH ROW
             BEGIN
                 DELETE FROM `crad_panel_assignment_notifications`
@@ -395,7 +395,7 @@ function cradEnsureResearchGroupHistoryProtection(PDO $pdo): array
         ALTER TABLE `crad_research_plans`
         ADD CONSTRAINT fk_rp_research_group
         FOREIGN KEY (research_group_id)
-         `crad_research_groups`(id)
+        REFERENCES `crad_research_groups`(id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
     ");
@@ -564,7 +564,7 @@ function cradEnsureTitleApprovalResearchGroupCascade(PDO $pdo, bool $reconcileEx
         ALTER TABLE `crad_research_groups`
         ADD CONSTRAINT fk_rg_title_approval
         FOREIGN KEY (title_approval_id)
-         `crad_title_approvals`(id)
+        REFERENCES `crad_title_approvals`(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
     ");
