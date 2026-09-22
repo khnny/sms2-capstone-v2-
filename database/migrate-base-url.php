@@ -38,7 +38,8 @@ function sms2MigrateStoredBaseUrls(?callable $sink = null): array
     $log('Rewriting stored URLs: ' . $from . ' -> ' . $to);
 
     $totalUpdated = 0;
-    foreach ($tables as $table => $urlColumn) {
+    foreach ($tables as $logicalTable => $urlColumn) {
+        $table = crad_resolve_table($logicalTable);
         $exists = $pdo->query('SHOW TABLES LIKE ' . $pdo->quote($table))->fetchColumn();
         if (!$exists) {
             $log('Skipped ' . $table . ' (table not found).');

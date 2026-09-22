@@ -294,7 +294,7 @@ function facultyAccountAssignments(): array
     }
 
     $map = facultyAccountMap();
-    $table = $map['table'];
+    $table = '`' . str_replace('`', '``', (string) $map['table']) . '`';
     $nameCol = $map['name_col'];
     $emailCol = $map['email_col'];
     $roleCol = $map['role_col'];
@@ -372,7 +372,7 @@ function facultyApprovedResearchAssignments(): array
     }
 
     $map      = facultyAccountMap();
-    $table    = $map['table'];
+    $table    = '`' . str_replace('`', '``', (string) $map['table']) . '`';
     $nameCol  = $map['name_col'];
     $emailCol = $map['email_col'];
     $roleCol  = $map['role_col'];
