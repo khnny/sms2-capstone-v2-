@@ -560,7 +560,7 @@ function facultyAccountPostNotice(): ?array
     $oldName = (string) ($_SESSION['user_name'] ?? '');
     $oldEmail = strtolower((string) ($_SESSION['user_email'] ?? ''));
     $map = facultyAccountMap($role);
-    $table = $map['table'];
+    $table = '`' . str_replace('`', '``', (string) $map['table']) . '`';
     $nameCol = $map['name_col'];
     $emailCol = $map['email_col'];
 
