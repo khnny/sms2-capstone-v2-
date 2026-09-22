@@ -303,13 +303,16 @@ function rcpStoreUpload(int $groupId, array $file): array
     }
     $ext = $mime === 'image/png' ? 'png' : 'jpg';
     $dir = ROOT_PATH . '/uploads/college-payment';
-    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-        return ['ok' => false, 'error' => 'Could not store the college payment picture.'];
+    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
+        return ['ok' => false, 'error' => 'The college-payment upload folder could not be created on the hosting server.'];
+    }
+    if (!is_writable($dir)) {
+        return ['ok' => false, 'error' => 'The college-payment upload folder is not writable on the hosting server.'];
     }
     $stored = 'rcp-' . $groupId . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
     $path = $dir . '/' . $stored;
     if (!move_uploaded_file($tmp, $path)) {
-        return ['ok' => false, 'error' => 'Could not store the college payment picture.'];
+        return ['ok' => false, 'error' => 'The hosting server could not save the college payment picture.'];
     }
     return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $path];
 }
