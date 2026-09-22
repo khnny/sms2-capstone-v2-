@@ -37,6 +37,11 @@ In HostForge → Environment Variables, set:
 Optional (recommended for web migrate):
   SMS2_DEPLOY_TOKEN=<long random secret you invent>
 
+Optional SMTP (Gmail App Password — recommended on HostForge so email
+survives redeploys even if storage/keys/app.key is regenerated):
+  SMS2_SMTP_USERNAME=your.account@gmail.com
+  SMS2_SMTP_PASSWORD=xxxxxxxxxxxxxxxx
+
 Do NOT set a separate crad_db. CRAD uses the same DB automatically
 (CRAD_DB_NAME falls back to DB_DATABASE / DB_NAME).
 
@@ -140,3 +145,10 @@ Troubleshooting
 
 Cannot connect from your PC to mariadb-*.internal
   → Expected. Use HostForge terminal / phpMyAdmin, not local XAMPP.
+
+"SMTP password is missing or could not be decrypted"
+  → Encrypted DB secret lost after app.key rotated, or never saved on HostForge.
+    Fastest fix: set HostForge env SMS2_SMTP_PASSWORD to your Gmail App Password
+    (no spaces needed), redeploy/restart app, then Test email in System Settings.
+    Also set smtp_host=smtp.gmail.com, port 587, TLS, and smtp_username in
+    System Settings if those are empty.
