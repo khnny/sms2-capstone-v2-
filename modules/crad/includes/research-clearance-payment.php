@@ -529,6 +529,20 @@ function rcpCanApprove(): bool
 function rcpPurgeDisconnectedPayments(PDO $crad): int
 {
     rcpEnsureSchema($crad);
+    $requiredTables = ['crad_research_clearance_payments', 'crad_research_groups'];
+    foreach ($requiredTables as $table) {
+        try {
+            $tableCheck = $crad->prepare('SHOW TABLES LIKE ?');
+            $tableCheck->execute([$table]);
+            if (!$tableCheck->fetchColumn()) {
+                error_log('RCP cleanup skipped; missing table: ' . $table);
+                return 0;
+            }
+        } catch (Throwable $e) {
+            error_log('RCP cleanup table check failed: ' . $e->getMessage());
+            return 0;
+        }
+    }
     $orphans = $crad->query(
         "SELECT p.id, p.uploaded_file
          FROM `crad_research_clearance_payments` p
