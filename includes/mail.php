@@ -129,10 +129,19 @@ function smsSendMailSmtp(
             $user = $overrideUser;
         }
     }
-    if ($user === '' && function_exists('sms2_env_first')) {
-        $envUser = trim((string) sms2_env_first(['SMS2_SMTP_USERNAME', 'SMTP_USERNAME'], ''));
-        if ($envUser !== '') {
-            $user = $envUser;
+    if ($user === '') {
+        foreach (['SMS2_SMTP_USERNAME', 'SMTP_USERNAME'] as $envKey) {
+            $raw = function_exists('sms2_env') ? sms2_env($envKey) : null;
+            if (($raw === null || $raw === '') && isset($_ENV[$envKey]) && is_scalar($_ENV[$envKey])) {
+                $raw = (string) $_ENV[$envKey];
+            }
+            if (($raw === null || $raw === '') && isset($_SERVER[$envKey]) && is_scalar($_SERVER[$envKey])) {
+                $raw = (string) $_SERVER[$envKey];
+            }
+            if (is_string($raw) && trim($raw) !== '') {
+                $user = trim($raw);
+                break;
+            }
         }
     }
     $pass = smsSmtpPassword();
