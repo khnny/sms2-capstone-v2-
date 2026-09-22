@@ -6,6 +6,7 @@
  * Prefer setting these in the HostForge panel (no password in files):
  *   DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
  *   SMS2_DEPLOY_TOKEN  (optional; for /setup/deploy-db.php)
+ *   SMS2_SMTP_PASSWORD / SMS2_SMTP_USERNAME  (Gmail App Password — survives redeploys)
  *
  * Full checklist: database/HOSTFORGE_DEPLOY.txt
  *
@@ -32,3 +33,7 @@ define('CRAD_DB_NAME', 'hf_db_kn5x0oao');
 define('STUDENT_PORTAL_DB_NAME', 'hf_db_kn5x0oao');
 define('REPORTS_DB_NAME', 'hf_db_kn5x0oao');
 define('USERMGMT_DB_NAME', 'hf_db_kn5x0oao');
+
+// Optional SMTP (prefer HostForge Environment Variables instead):
+// define('SMS2_SMTP_USERNAME', 'your.account@gmail.com');
+// define('SMS2_SMTP_PASSWORD', 'xxxx xxxx xxxx xxxx');

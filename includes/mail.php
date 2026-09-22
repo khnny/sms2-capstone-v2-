@@ -49,12 +49,33 @@ function smsMailEncodeAddress(string $name, string $email): string
 }
 
 /**
- * Resolve SMTP password: local.php override → storage/keys file → encrypted setting.
+ * Resolve SMTP password: env → local.php constant → storage/keys file → encrypted setting.
  */
 function smsSmtpPassword(): string
 {
+    // HostForge / container env (preferred for production — survives redeploys)
+    if (function_exists('sms2_env_first')) {
+        $fromEnv = trim((string) sms2_env_first(['SMS2_SMTP_PASSWORD', 'SMTP_PASSWORD'], ''));
+        $fromEnv = preg_replace('/\s+/', '', $fromEnv) ?? $fromEnv;
+        if ($fromEnv !== '') {
+            return $fromEnv;
+        }
+    } else {
+        $raw = getenv('SMS2_SMTP_PASSWORD');
+        if ($raw === false || $raw === '') {
+            $raw = getenv('SMTP_PASSWORD');
+        }
+        if (is_string($raw) && $raw !== '') {
+            $fromEnv = preg_replace('/\s+/', '', trim($raw)) ?? trim($raw);
+            if ($fromEnv !== '') {
+                return $fromEnv;
+            }
+        }
+    }
+
     if (defined('SMS2_SMTP_PASSWORD')) {
         $local = trim((string) constant('SMS2_SMTP_PASSWORD'));
+        $local = preg_replace('/\s+/', '', $local) ?? $local;
         if ($local !== '') {
             return $local;
         }
@@ -101,6 +122,12 @@ function smsSendMailSmtp(
             $user = $overrideUser;
         }
     }
+    if ($user === '' && function_exists('sms2_env_first')) {
+        $envUser = trim((string) sms2_env_first(['SMS2_SMTP_USERNAME', 'SMTP_USERNAME'], ''));
+        if ($envUser !== '') {
+            $user = $envUser;
+        }
+    }
     $pass = smsSmtpPassword();
 
     if ($host === '') {
@@ -113,7 +140,7 @@ function smsSendMailSmtp(
     if ($user !== '' && $pass === '') {
         return [
             'ok' => false,
-            'error' => 'SMTP password is missing or could not be decrypted. Open System Settings → Notifications / Email, re-enter your App Password, then Save and send a test email. (Local fallback: put the App Password in storage/keys/smtp_app_password or define SMS2_SMTP_PASSWORD in config/local.php.)',
+            'error' => 'SMTP password is missing or could not be decrypted. Fix one of: (1) System Settings → re-enter App Password and Save, (2) HostForge env SMS2_SMTP_PASSWORD, (3) storage/keys/smtp_app_password on the server, or (4) SMS2_SMTP_PASSWORD in config/local.php.',
         ];
     }
 
