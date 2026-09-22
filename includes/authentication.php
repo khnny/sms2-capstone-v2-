@@ -342,6 +342,14 @@ function smsAllowedModuleKeysForRole(string $roleKey): array
         ));
     }
 
+    // Super Admin: never grant CRAD modules (sidebar + direct URL checks).
+    if ($roleKey === 'superadmin') {
+        $allowed = array_values(array_filter(
+            $allowed,
+            static fn(string $moduleKey): bool => !in_array($moduleKey, ['crad', 'crad_grant'], true)
+        ));
+    }
+
     return $allowed;
 }
 
@@ -715,7 +723,9 @@ function getVisibleModules(array $modules): array
         $visible['crad_grant'] = smsReviewCommitteeGrantModule();
     }
 
-    if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
+    // Operational Admin (sms_admin) keeps CRAD in the sidebar.
+    // Super Admin must NOT see CRAD — only User Management / system controls.
+    if (smsNormalizeRoleKey(getCurrentUserRoleKey()) === 'sms_admin') {
         $assignmentNav = smsMergeModuleNav(
             smsAdminCoreSystemNav(),
             smsAdminDefenseSchedulingNav()
@@ -733,6 +743,10 @@ function getVisibleModules(array $modules): array
         if (isset($visible['crad']['groups']['Research Management'])) {
             unset($visible['crad']['groups']['Research Management']);
         }
+    }
+
+    if (smsNormalizeRoleKey(getCurrentUserRoleKey()) === 'superadmin') {
+        unset($visible['crad'], $visible['crad_grant']);
     }
 
     if (in_array('student_portal', $allowedModules, true) && !isset($visible['student_portal'])) {
