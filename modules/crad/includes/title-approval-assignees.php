@@ -103,7 +103,7 @@ function cradEnsureAssigneeSchema(PDO $pdo): void
 
     $addColumn = static function (PDO $pdo, string $table, string $column, string $ddl): void {
         try {
-            $col = $pdo->query("SHOW COLUMNS FROM {$table} LIKE " . $pdo->quote($column))->fetch();
+            $col = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE " . $pdo->quote($column))->fetch();
             if (!$col) {
                 $pdo->exec($ddl);
             }
@@ -112,9 +112,9 @@ function cradEnsureAssigneeSchema(PDO $pdo): void
         }
     };
 
-    $addColumn($pdo, 'research_coordinator_assignments', 'student_id',
+    $addColumn($pdo, 'crad_research_coordinator_assignments', 'student_id',
         "ALTER TABLE `crad_research_coordinator_assignments` ADD COLUMN student_id VARCHAR(40) NULL AFTER research_title, ADD KEY idx_rca_student (student_id)");
-    $addColumn($pdo, 'research_adviser_assignments', 'student_id',
+    $addColumn($pdo, 'crad_research_adviser_assignments', 'student_id',
         "ALTER TABLE `crad_research_adviser_assignments` ADD COLUMN student_id VARCHAR(40) NULL AFTER group_number, ADD KEY idx_raa_student (student_id)");
 
     try {
