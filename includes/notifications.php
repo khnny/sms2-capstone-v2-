@@ -11,15 +11,16 @@ require_once __DIR__ . '/../modules/crad/includes/chapter-evaluation-workflow.ph
 
 function smsAssignmentNotificationEnsureSentSchema(PDO $crad): void
 {
-    foreach (['research_adviser_assignments'] as $table) {
+    foreach (['crad_research_adviser_assignments'] as $table) {
         try {
-            $sentAt = $crad->query("SHOW COLUMNS FROM {$table} LIKE 'notification_sent_at'")->fetch();
+            $quoted = '`' . str_replace('`', '``', $table) . '`';
+            $sentAt = $crad->query("SHOW COLUMNS FROM {$quoted} LIKE 'notification_sent_at'")->fetch();
             if (!$sentAt) {
-                $crad->exec("ALTER TABLE {$table} ADD notification_sent_at DATETIME DEFAULT NULL AFTER updated_at");
+                $crad->exec("ALTER TABLE {$quoted} ADD notification_sent_at DATETIME DEFAULT NULL AFTER updated_at");
             }
-            $sentBy = $crad->query("SHOW COLUMNS FROM {$table} LIKE 'notification_sent_by'")->fetch();
+            $sentBy = $crad->query("SHOW COLUMNS FROM {$quoted} LIKE 'notification_sent_by'")->fetch();
             if (!$sentBy) {
-                $crad->exec("ALTER TABLE {$table} ADD notification_sent_by INT UNSIGNED DEFAULT NULL AFTER notification_sent_at");
+                $crad->exec("ALTER TABLE {$quoted} ADD notification_sent_by INT UNSIGNED DEFAULT NULL AFTER notification_sent_at");
             }
         } catch (Throwable $e) {
             error_log('Assignment notification sent schema check failed for ' . $table . ': ' . $e->getMessage());

@@ -1980,7 +1980,7 @@ function rpEnsurePanelRemarksColumn(PDO $crad): void
         $stmt = $crad->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE()
-               AND TABLE_NAME   = 'research_milestones'
+               AND TABLE_NAME   = 'crad_research_milestones'
                AND COLUMN_NAME  = 'panel_remarks'"
         );
         $stmt->execute();
