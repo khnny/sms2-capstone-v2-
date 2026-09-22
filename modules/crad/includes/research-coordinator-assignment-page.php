@@ -1174,12 +1174,13 @@ function rcAssignmentAssignedParties(PDO $pdo, array $group): array
 
 function rcAssignmentResetOtherRowsForGroup(PDO $pdo, string $table, int $keepId, array $selectedGroup): void
 {
-    if ($table !== 'research_adviser_assignments' || $keepId <= 0) {
+    if (!in_array($table, ['research_adviser_assignments', 'crad_research_adviser_assignments'], true) || $keepId <= 0) {
         return;
     }
 
+    $table = 'crad_research_adviser_assignments';
     $stmt = $pdo->prepare("
-        UPDATE {$table}
+        UPDATE `{$table}`
            SET assignment_status = 'Pending',
                assigned_by = NULL,
                assigned_at = NULL,
@@ -1247,7 +1248,7 @@ function rcAssignmentFindCandidateRowForGroup(PDO $pdo, string $kind, array $can
         return null;
     }
 
-    $table = 'research_adviser_assignments';
+    $table = 'crad_research_adviser_assignments';
     $nameColumn = 'adviser_name';
     $emailColumn = 'adviser_email';
     $email = strtolower(trim((string) ($candidate[$emailColumn] ?? '')));
@@ -1255,7 +1256,7 @@ function rcAssignmentFindCandidateRowForGroup(PDO $pdo, string $kind, array $can
 
     $stmt = $pdo->prepare("
         SELECT *
-        FROM {$table}
+        FROM `{$table}`
         WHERE (
                 (:email_gate <> '' AND LOWER(TRIM({$emailColumn})) = :email_match)
              OR (:name_gate <> '' AND LOWER(TRIM({$nameColumn})) = :name_match)
@@ -1496,7 +1497,7 @@ function rcAssignmentPayload(string $kind): array
         error_log('Research Coordinator assignment load failed: ' . $e->getMessage());
         return [
             'ok' => false,
-            'error' => 'Failed to load assignment records.',
+            'error' => 'Failed to load assignment records. ' . $e->getMessage(),
             'rows' => [],
             'groups' => [],
             'stats' => ['total' => 0, 'pending' => 0, 'available' => 0, 'assigned' => 0],
@@ -1617,7 +1618,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
 
     try {
         if ($matchesSelectedGroup($candidate)) {
-            rcAssignmentResetOtherRowsForGroup($pdo, 'research_adviser_assignments', $assignmentId, $selectedGroup);
+            rcAssignmentResetOtherRowsForGroup($pdo, 'crad_research_adviser_assignments', $assignmentId, $selectedGroup);
             $stmt = $pdo->prepare("
                 UPDATE `crad_research_adviser_assignments`
                    SET assignment_status = 'Assigned',

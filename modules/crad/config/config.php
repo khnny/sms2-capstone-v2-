@@ -753,7 +753,7 @@ function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $recon
         ALTER TABLE `crad_research_coordinator_assignments`
         ADD CONSTRAINT fk_rca_title_approval
         FOREIGN KEY (title_approval_id)
-         `crad_title_approvals`(id)
+        REFERENCES `crad_title_approvals`(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
     ");
@@ -805,29 +805,47 @@ function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $rec
         $result['changed'] = true;
     }
 
-    $pdo->exec('DROP TRIGGER IF EXISTS trg_title_approvals_after_delete');
-    $pdo->exec("
-        CREATE TRIGGER trg_title_approvals_after_delete
-        AFTER DELETE ON title_approvals
-        FOR EACH ROW
-        BEGIN
-            DELETE FROM `crad_research_coordinator_assignments`
-             WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
-                OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+    try {
+        $triggerExists = $pdo->query("
+            SELECT TRIGGER_NAME
+            FROM information_schema.TRIGGERS
+            WHERE TRIGGER_SCHEMA = DATABASE()
+              AND TRIGGER_NAME = 'trg_title_approvals_after_delete'
+              AND EVENT_OBJECT_TABLE = 'crad_title_approvals'
+            LIMIT 1
+        ")->fetchColumn();
 
-            DELETE FROM `crad_research_adviser_assignments`
-             WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
-                OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
-        END
-    ");
-    $result['changed'] = true;
+        if (!$triggerExists) {
+            $pdo->exec('DROP TRIGGER IF EXISTS trg_title_approvals_after_delete');
+            $pdo->exec("
+                CREATE TRIGGER trg_title_approvals_after_delete
+                AFTER DELETE ON `crad_title_approvals`
+                FOR EACH ROW
+                BEGIN
+                    DELETE FROM `crad_research_coordinator_assignments`
+                     WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
+                        OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
+                        OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
+                        OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+
+                    DELETE FROM `crad_research_adviser_assignments`
+                     WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
+                        OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
+                        OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+                END
+            ");
+            $result['changed'] = true;
+            $result['message'] = 'Installed title approval delete cascade for coordinator and adviser assignments.';
+        } else {
+            $result['message'] = 'Title approval delete cascade trigger already installed.';
+        }
+    } catch (Throwable $e) {
+        error_log('Title approval delete cascade trigger skipped: ' . $e->getMessage());
+        $result['message'] = 'Title approval cascade trigger skipped: ' . $e->getMessage();
+    }
 
     cradPruneDeletedTitleApprovalDependents($pdo);
 
-    $result['message'] = 'Installed title approval delete cascade for coordinator and adviser assignments.';
     return $result;
 }
 
