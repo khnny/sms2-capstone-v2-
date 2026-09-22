@@ -56,6 +56,7 @@ $pdo->exec('DELETE FROM `sms2_role_permissions`');
 
 $perms = [
     'superadmin'   => ['user-management'],
+    'sms_admin'    => ['enrollment', 'registrar', 'curriculum', 'accreditation', 'payment', 'faculty', 'scheduling', 'cocurricular', 'lms', 'crad'],
     'admission'    => ['enrollment'],
     'registrar'    => ['registrar', 'curriculum', 'scheduling'],
     'crad_officer' => ['crad'],
