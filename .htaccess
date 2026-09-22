@@ -8,6 +8,10 @@ RewriteRule ^images/ - [L]
 
 RewriteRule ^up$ up.php [END]
 
+# Keep deployment schemas and configuration files server-side only.
+RewriteRule \.(?:sql|bak|env)$ - [F,L,NC]
+RewriteRule ^config/local(?:\..*)?\.php$ - [F,L,NC]
+
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
