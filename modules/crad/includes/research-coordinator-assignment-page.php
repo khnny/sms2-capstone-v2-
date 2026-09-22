@@ -319,6 +319,7 @@ function rcAssignmentResetStaleAssignments(PDO $pdo): void
     }
 
     $defenseTables = [
+        'crad_research_defense_schedules',
         'research_defense_schedules',
         'research_defense_schedule',
         'research_defenses',

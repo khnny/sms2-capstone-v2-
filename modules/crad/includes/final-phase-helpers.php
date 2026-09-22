@@ -148,11 +148,11 @@ function finalPhaseEnsureSchema(PDO $crad): void
     }
 
     foreach ([
-        'final_defense_recommendations' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
-        'final_manuscript_approvals' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
-        'manuscript_evaluations' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
-        'manuscript_submissions' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
-        'publications' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'crad_final_defense_recommendations' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'crad_final_manuscript_approvals' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'crad_manuscript_evaluations' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'crad_manuscript_submissions' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'crad_publications' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
     ] as $table => $definition) {
         try {
             $idColumn = $crad->query("SHOW COLUMNS FROM `{$table}` LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
@@ -188,7 +188,7 @@ function finalPhaseEnsureSchema(PDO $crad): void
             $check = $crad->prepare(
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
                  WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME = 'research_revision_cycles'
+                   AND TABLE_NAME = 'crad_research_revision_cycles'
                    AND COLUMN_NAME = ?"
             );
             $check->execute([$column]);

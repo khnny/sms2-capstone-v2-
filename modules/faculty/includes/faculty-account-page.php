@@ -137,7 +137,7 @@ function facultyAccountMap(?string $role = null): array
 
     return [
         'role_label' => 'Adviser',
-        'table' => 'research_adviser_assignments',
+        'table' => 'crad_research_adviser_assignments',
         'name_col' => 'adviser_name',
         'email_col' => 'adviser_email',
         'role_col' => "'Research Adviser'",
