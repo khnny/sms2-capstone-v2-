@@ -54,16 +54,23 @@ function smsMailEncodeAddress(string $name, string $email): string
 function smsSmtpPassword(): string
 {
     // HostForge / container env (preferred for production — survives redeploys)
-    if (function_exists('sms2_env_first')) {
-        $fromEnv = trim((string) sms2_env_first(['SMS2_SMTP_PASSWORD', 'SMTP_PASSWORD'], ''));
-        $fromEnv = preg_replace('/\s+/', '', $fromEnv) ?? $fromEnv;
-        if ($fromEnv !== '') {
-            return $fromEnv;
+    $envKeys = ['SMS2_SMTP_PASSWORD', 'SMTP_PASSWORD'];
+    foreach ($envKeys as $envKey) {
+        $raw = null;
+        if (function_exists('sms2_env')) {
+            $raw = sms2_env($envKey);
         }
-    } else {
-        $raw = getenv('SMS2_SMTP_PASSWORD');
-        if ($raw === false || $raw === '') {
-            $raw = getenv('SMTP_PASSWORD');
+        if ($raw === null || $raw === '') {
+            $g = getenv($envKey);
+            if ($g !== false && $g !== '') {
+                $raw = $g;
+            }
+        }
+        if (($raw === null || $raw === '') && isset($_ENV[$envKey]) && is_scalar($_ENV[$envKey])) {
+            $raw = (string) $_ENV[$envKey];
+        }
+        if (($raw === null || $raw === '') && isset($_SERVER[$envKey]) && is_scalar($_SERVER[$envKey])) {
+            $raw = (string) $_SERVER[$envKey];
         }
         if (is_string($raw) && $raw !== '') {
             $fromEnv = preg_replace('/\s+/', '', trim($raw)) ?? trim($raw);
@@ -140,7 +147,15 @@ function smsSendMailSmtp(
     if ($user !== '' && $pass === '') {
         return [
             'ok' => false,
-            'error' => 'SMTP password is missing or could not be decrypted. Fix one of: (1) System Settings → re-enter App Password and Save, (2) HostForge env SMS2_SMTP_PASSWORD, (3) storage/keys/smtp_app_password on the server, or (4) SMS2_SMTP_PASSWORD in config/local.php.',
+            'error' => 'SMTP password missing. Set HostForge env SMS2_SMTP_PASSWORD (then restart/redeploy), or re-save App Password in System Settings, or put it in storage/keys/smtp_app_password on the server.',
+        ];
+    }
+
+    // Surface which source is empty to speed up HostForge debugging (no secret leaked).
+    if ($user === '' && $pass !== '') {
+        return [
+            'ok' => false,
+            'error' => 'SMTP username is missing. Set smtp_username in System Settings or HostForge env SMS2_SMTP_USERNAME.',
         ];
     }
 

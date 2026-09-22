@@ -35,11 +35,18 @@ require_once __DIR__ . '/tables.php';
 if (!function_exists('sms2_env')) {
     function sms2_env(string $key, ?string $default = null): ?string
     {
+        // HostForge / PHP-FPM may expose vars via $_ENV or $_SERVER but not getenv().
         $value = getenv($key);
+        if (($value === false || $value === '') && isset($_ENV[$key]) && is_scalar($_ENV[$key])) {
+            $value = (string) $_ENV[$key];
+        }
+        if (($value === false || $value === '') && isset($_SERVER[$key]) && is_scalar($_SERVER[$key])) {
+            $value = (string) $_SERVER[$key];
+        }
         if ($value === false || $value === '') {
             return $default;
         }
-        return $value;
+        return (string) $value;
     }
 }
 
