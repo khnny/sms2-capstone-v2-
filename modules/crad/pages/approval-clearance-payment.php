@@ -71,6 +71,10 @@ renderBreadcrumbs($breadcrumbs);
                     <label class="form-label">Reference / O.R. Number</label>
                     <input type="text" class="form-control" data-rcp-or readonly>
                 </div>
+                <div class="mb-3" data-rcp-receipt-student-wrap hidden>
+                    <label class="form-label">Name read from receipt</label>
+                    <input type="text" class="form-control" data-rcp-receipt-student readonly>
+                </div>
                 <div class="mb-3">
                     <label class="form-label">Remarks</label>
                     <input type="text" class="form-control" data-rcp-remarks placeholder="HMA" value="HMA">
@@ -83,5 +87,5 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </div>
 </div>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-purge-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-reference-2"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

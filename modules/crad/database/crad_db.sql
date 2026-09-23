@@ -616,18 +616,6 @@ CREATE TABLE `crad_panel_member_availability` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `crad_panel_member_availability`
---
-
-INSERT INTO `crad_panel_member_availability` (`id`, `panel_user_id`, `availability_status`, `notes`, `updated_at`, `created_at`) VALUES
-(6, 491, 'Available', '', '2026-08-23 04:08:58', '2026-08-23 04:08:58'),
-(7, 492, 'Available', '', '2026-08-23 04:09:10', '2026-08-23 04:09:10'),
-(8, 493, 'Available', '', '2026-08-23 04:09:26', '2026-08-23 04:09:26'),
-(9, 990, 'Available', '', '2026-09-19 00:46:54', '2026-09-19 00:46:54');
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `crad_preoral_defense_evaluations`
 --
 
@@ -1250,19 +1238,6 @@ CREATE TABLE `crad_research_venues` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `crad_research_venues`
---
-
-INSERT INTO `crad_research_venues` (`id`, `venue_name`, `capacity`, `venue_type`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
-(1, 'CRAD Conference Room', 30, 'Conference Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
-(2, 'Research Room 1', 25, 'Research Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
-(3, 'Research Room 2', 25, 'Research Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
-(4, 'AVR Room', 100, 'Auditorium', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 14:20:53'),
-(5, 'Computer Laboratory 1', 40, 'Laboratory', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31');
-
--- --------------------------------------------------------
 
 --
 -- Table structure for table `crad_title_approvals`

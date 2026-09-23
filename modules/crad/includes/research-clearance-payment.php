@@ -144,6 +144,7 @@ function rcpPublicRow(array $row): array
         'status' => (string) ($row['status'] ?? ''),
         'status_label' => rcpStatusLabel((string) ($row['status'] ?? '')),
         'or_number' => (string) ($row['or_number'] ?? ''),
+        'receipt_student_name' => (string) ($row['receipt_student_name'] ?? ''),
         'remarks' => (string) ($row['remarks'] ?? ''),
         'uploaded_original' => (string) ($row['uploaded_original'] ?? ''),
         'uploaded_url' => rcpUploadPublicUrl($row),
@@ -156,30 +157,50 @@ function rcpPublicRow(array $row): array
     ];
 }
 
-function rcpParseReferenceNumber(string $text): string
+/** @return array{reference_number: string, student_name: string} */
+function rcpParseReceiptDetails(string $source): array
 {
-    $text = trim(preg_replace('/\s+/', ' ', $text) ?? '');
-    if ($text === '') {
-        return '';
-    }
-    // Only accept numbers tied to a receipt label.  This deliberately avoids
-    // amounts, dates, student IDs, transaction references, and invoice IDs.
+    $text = trim(preg_replace('/\s+/', ' ', trim($source)) ?? '');
+    $details = ['reference_number' => '', 'student_name' => ''];
+    if ($text === '') return $details;
+
+    // HelloMoney uses "Reference No." instead of "O.R. No.". Requiring one
+    // of these labels prevents dates, amounts, and student IDs from matching.
     $normalized = strtoupper(str_ireplace(['0R NO', '0R NUMBER'], ['OR NO', 'OR NUMBER'], $text));
-    $label = '(?:O\\s*R|OFFICIAL\\s+RECEIPT|RECEIPT)\\s*(?:NO\\.?|NUMBER|#)';
+    $label = '(?:O\\s*R|OFFICIAL\\s+RECEIPT|RECEIPT|REFERENCE|TRANSACTION\\s+(?:REFERENCE|NO\\.?|NUMBER|ID))\\s*(?:NO\\.?|NUMBER|#|ID)?';
     if (preg_match('/' . $label . '\\s*[:#-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,79})\\b/i', $normalized, $m)) {
         $candidate = trim($m[1]);
-        // A labelled date or amount is still not a receipt number.
         if (!preg_match('/^\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}$/', $candidate)
             && !preg_match('/^(?:PHP|USD|\$)/i', $candidate)) {
-            return $candidate;
+            $details['reference_number'] = $candidate;
         }
     }
-    // Some issuers print the OR prefix directly next to the number without a
-    // separate label.  The prefix makes this distinct from arbitrary numbers.
-    if (preg_match('/\b(OR[-\/]\d{4,})\b/i', $normalized, $m)) {
-        return strtoupper($m[1]);
+    if ($details['reference_number'] === '' && preg_match('/\b(OR[-\/]\d{4,})\b/i', $normalized, $m)) {
+        $details['reference_number'] = strtoupper($m[1]);
     }
-    return '';
+
+    // Receipts commonly place the name on the line after "Student Name".
+    $lines = preg_split('/\R/', $source) ?: [];
+    foreach ($lines as $index => $line) {
+        if (!preg_match('/^\s*STUDENT\s*NAME\s*[:\-]?\s*(.*)$/i', trim($line), $m)) continue;
+        $name = trim((string) $m[1]);
+        if ($name === '' && isset($lines[$index + 1])) $name = trim((string) $lines[$index + 1]);
+        if ($name !== '') {
+            $details['student_name'] = $name;
+            break;
+        }
+    }
+    if ($details['student_name'] === '' && preg_match('/\bSTUDENT\s*NAME\s*[:\-]?\s*(.+?)(?=\s+(?:STUDENT\s*(?:NUMBER|NO\.?|ID)|PAYMENT\s+FOR|BILLER|AMOUNT|REMARKS)\b|$)/i', $text, $m)) {
+        $details['student_name'] = trim($m[1]);
+    }
+    $details['student_name'] = trim(preg_replace('/[^\p{L} .\'\-]/u', '', $details['student_name']) ?? '');
+    if (!preg_match('/\p{L}/u', $details['student_name'])) $details['student_name'] = '';
+    return $details;
+}
+
+function rcpParseReferenceNumber(string $text): string
+{
+    return rcpParseReceiptDetails($text)['reference_number'];
 }
 
 function rcpOcrImageText(string $path): string
@@ -229,7 +250,13 @@ function rcpOcrImageText(string $path): string
 
 function rcpExtractReferenceFromImage(string $path): string
 {
-    return rcpParseReferenceNumber(rcpOcrImageText($path));
+    return rcpExtractReceiptDetailsFromImage($path)['reference_number'];
+}
+
+/** @return array{reference_number: string, student_name: string} */
+function rcpExtractReceiptDetailsFromImage(string $path): array
+{
+    return rcpParseReceiptDetails(rcpOcrImageText($path));
 }
 
 function rcpPaymentImagePath(string $file): ?string
@@ -260,7 +287,8 @@ function rcpPaymentImagePath(string $file): ?string
 function rcpEnsureOrFromImage(PDO $crad, array $row): array
 {
     $or = trim((string) ($row['or_number'] ?? ''));
-    if ($or !== '' && !preg_match('/^OR-\d+$/i', $or)) {
+    $receiptStudentName = trim((string) ($row['receipt_student_name'] ?? ''));
+    if ($or !== '' && !preg_match('/^OR-\d+$/i', $or) && $receiptStudentName !== '') {
         return $row;
     }
     $file = basename(str_replace('\\', '/', (string) ($row['uploaded_file'] ?? '')));
@@ -273,13 +301,16 @@ function rcpEnsureOrFromImage(PDO $crad, array $row): array
     }
     @touch($lock);
     $imagePath = rcpPaymentImagePath($file);
-    $extracted = $imagePath ? rcpExtractReferenceFromImage($imagePath) : '';
-    if ($extracted === '' || strcasecmp($extracted, $or) === 0) {
-        return $row;
+    $details = $imagePath ? rcpExtractReceiptDetailsFromImage($imagePath) : ['reference_number' => '', 'student_name' => ''];
+    $extracted = $details['reference_number'];
+    if ($extracted !== '' && strcasecmp($extracted, $or) !== 0) {
+        $crad->prepare('UPDATE `crad_research_clearance_payments` SET or_number = ? WHERE id = ?')
+            ->execute([$extracted, (int) ($row['id'] ?? 0)]);
+        $row['or_number'] = $extracted;
     }
-    $crad->prepare('UPDATE `crad_research_clearance_payments` SET or_number = ? WHERE id = ?')
-        ->execute([$extracted, (int) ($row['id'] ?? 0)]);
-    $row['or_number'] = $extracted;
+    // This is shown to the approver for validation; it never changes the
+    // authenticated student or the assigned research group.
+    $row['receipt_student_name'] = $details['student_name'];
     return $row;
 }
 
@@ -383,7 +414,8 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         return $saved;
     }
     $existing = rcpFindByGroup($crad, $groupId, $stage);
-    $or = rcpExtractReferenceFromImage((string) ($saved['path'] ?? ''));
+    $details = rcpExtractReceiptDetailsFromImage((string) ($saved['path'] ?? ''));
+    $or = $details['reference_number'];
     if ($or === '') {
         $typed = strtoupper(trim($orNumber));
         $or = rcpParseReferenceNumber($typed) ?: $typed;
@@ -437,6 +469,11 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
             ':or_number' => $or,
         ]);
         $fresh = rcpFindById($crad, (int) $crad->lastInsertId());
+    }
+    if ($fresh) {
+        // Send the OCR result back immediately after upload. On later page
+        // loads it is safely re-read from the original payment image.
+        $fresh['receipt_student_name'] = $details['student_name'];
     }
     return ['ok' => true, 'payment' => $fresh];
 }

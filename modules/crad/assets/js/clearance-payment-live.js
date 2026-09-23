@@ -19,6 +19,8 @@
     var studentList = root.querySelector('[data-rcp-student-list]');
     var detail = root.querySelector('[data-rcp-detail]');
     var adminOr = root.querySelector('[data-rcp-or]');
+    var receiptStudent = root.querySelector('[data-rcp-receipt-student]');
+    var receiptStudentWrap = root.querySelector('[data-rcp-receipt-student-wrap]');
     var adminRemarks = root.querySelector('[data-rcp-remarks]');
     var approveBtn = root.querySelector('[data-rcp-approve]');
     var rejectBtn = root.querySelector('[data-rcp-reject]');
@@ -140,6 +142,8 @@
         }
         var typing = document.activeElement === adminOr || document.activeElement === adminRemarks;
         if (adminOr) adminOr.value = row.or_number || '';
+        if (receiptStudent) receiptStudent.value = row.receipt_student_name || '';
+        if (receiptStudentWrap) receiptStudentWrap.hidden = !row.receipt_student_name;
         if (forceFields || !typing) {
             if (adminRemarks && (forceFields || !adminRemarks.value || adminRemarks.value === 'HMA')) {
                 adminRemarks.value = row.remarks || 'HMA';
