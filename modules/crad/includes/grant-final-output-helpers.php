@@ -72,8 +72,6 @@ function grantEnsureFinalOutputTables(PDO $crad): void
     }
     $done = true;
 
-    $crad->exec("UPDATE `crad_grant_final_output_submissions` SET status = 'OUTPUT_VERIFIED' WHERE status = 'VERIFIED'");
-
     $crad->exec("
         CREATE TABLE IF NOT EXISTS `crad_grant_final_output_submissions` (
             id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -111,6 +109,11 @@ function grantEnsureFinalOutputTables(PDO $crad): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 
+    // Older live databases used the value VERIFIED.  Do the enum expansion
+    // before converting its rows; updating first causes MariaDB/MySQL to
+    // reject OUTPUT_VERIFIED and makes the CRAD Verify button fail.
+    grantEnsureFinalOutputSubmissionStatusEnum($crad);
+
     $crad->exec("
         CREATE TABLE IF NOT EXISTS `crad_grant_publications_ip_repository` (
             id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -141,6 +144,45 @@ function grantEnsureFinalOutputTables(PDO $crad): void
             KEY idx_gpip_verified (verified_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
+}
+
+/** Upgrade legacy final-output statuses without losing existing submissions. */
+function grantEnsureFinalOutputSubmissionStatusEnum(PDO $crad): void
+{
+    try {
+        $stmt = $crad->prepare(
+            "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'crad_grant_final_output_submissions'
+               AND COLUMN_NAME = 'status'"
+        );
+        $stmt->execute();
+        $columnType = (string) $stmt->fetchColumn();
+        if ($columnType === '') {
+            return;
+        }
+
+        if (strpos($columnType, 'VERIFIED') !== false && strpos($columnType, 'OUTPUT_VERIFIED') === false) {
+            // Temporarily allow both values, convert legacy rows, then leave
+            // the table with the canonical workflow values only.
+            $crad->exec("ALTER TABLE `crad_grant_final_output_submissions`
+                MODIFY COLUMN status ENUM('FINAL_OUTPUT_SUBMITTED','RETURNED_FOR_CORRECTION','VERIFIED','OUTPUT_VERIFIED')
+                NOT NULL DEFAULT 'FINAL_OUTPUT_SUBMITTED'");
+            $crad->exec("UPDATE `crad_grant_final_output_submissions`
+                SET status = 'OUTPUT_VERIFIED' WHERE status = 'VERIFIED'");
+            $columnType = '';
+        }
+
+        if (strpos($columnType, 'OUTPUT_VERIFIED') === false || strpos($columnType, "'VERIFIED'") !== false) {
+            $crad->exec("ALTER TABLE `crad_grant_final_output_submissions`
+                MODIFY COLUMN status ENUM('FINAL_OUTPUT_SUBMITTED','RETURNED_FOR_CORRECTION','OUTPUT_VERIFIED')
+                NOT NULL DEFAULT 'FINAL_OUTPUT_SUBMITTED'");
+        }
+    } catch (Throwable $e) {
+        // The final-output API will return a clear error if the host DB user
+        // cannot alter its legacy schema. New installations are unaffected.
+        error_log('grantEnsureFinalOutputSubmissionStatusEnum: ' . $e->getMessage());
+    }
 }
 
 /**

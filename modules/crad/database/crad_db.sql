@@ -282,7 +282,7 @@ CREATE TABLE `crad_grant_final_output_submissions` (
   `final_pdf_path` varchar(255) DEFAULT NULL,
   `final_pdf_original` varchar(255) DEFAULT NULL,
   `supporting_files_json` text DEFAULT NULL,
-  `status` enum('FINAL_OUTPUT_SUBMITTED','RETURNED_FOR_CORRECTION','VERIFIED') NOT NULL DEFAULT 'FINAL_OUTPUT_SUBMITTED',
+  `status` enum('FINAL_OUTPUT_SUBMITTED','RETURNED_FOR_CORRECTION','OUTPUT_VERIFIED') NOT NULL DEFAULT 'FINAL_OUTPUT_SUBMITTED',
   `return_reason` text DEFAULT NULL,
   `verification_notes` text DEFAULT NULL,
   `submitted_by_user_id` int(10) UNSIGNED DEFAULT NULL,

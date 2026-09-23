@@ -220,9 +220,9 @@ function grantGetFundedDisbursementOverview(PDO $crad): array
                go.funding_title
           FROM `crad_grant_applications` ga
          INNER JOIN `crad_grant_opportunities` go ON go.id = ga.grant_opportunity_id
-         WHERE ga.status = ?
+         WHERE ga.status IN (" . implode(',', array_fill(0, count(grantPostFundingApplicationStatuses()), '?')) . ")
     ";
-    $params = [grantStatusApprovedFunded()];
+    $params = grantPostFundingApplicationStatuses();
 
     if (!$canManage && grantUserCanApply()) {
         $sql .= ' AND ga.applicant_user_id = ?';

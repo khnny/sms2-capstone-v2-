@@ -106,8 +106,9 @@ function grantInitializeFundedProjectMilestones(PDO $crad, int $applicationId): 
 {
     grantEnsureMilestoneTables($crad);
 
-    $stmt = $crad->prepare('SELECT id FROM `crad_grant_applications` WHERE id = ? AND status = ? LIMIT 1');
-    $stmt->execute([$applicationId, grantStatusApprovedFunded()]);
+    $statuses = grantPostFundingApplicationStatuses();
+    $stmt = $crad->prepare('SELECT id FROM `crad_grant_applications` WHERE id = ? AND status IN (' . implode(',', array_fill(0, count($statuses), '?')) . ') LIMIT 1');
+    $stmt->execute(array_merge([$applicationId], $statuses));
     if (!$stmt->fetchColumn()) {
         return ['ok' => false, 'error' => 'Approved & Funded application not found.'];
     }
@@ -153,8 +154,9 @@ function grantBackfillFundedProjectMilestones(PDO $crad): void
 {
     grantEnsureMilestoneTables($crad);
 
-    $stmt = $crad->prepare('SELECT id FROM `crad_grant_applications` WHERE status = ? ORDER BY id ASC');
-    $stmt->execute([grantStatusApprovedFunded()]);
+    $statuses = grantPostFundingApplicationStatuses();
+    $stmt = $crad->prepare('SELECT id FROM `crad_grant_applications` WHERE status IN (' . implode(',', array_fill(0, count($statuses), '?')) . ') ORDER BY id ASC');
+    $stmt->execute($statuses);
 
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $applicationId) {
         grantInitializeFundedProjectMilestones($crad, (int) $applicationId);
@@ -182,9 +184,9 @@ function grantGetFundedMilestoneOverview(PDO $crad): array
                go.funding_title
           FROM `crad_grant_applications` ga
          INNER JOIN `crad_grant_opportunities` go ON go.id = ga.grant_opportunity_id
-         WHERE ga.status = ?
+         WHERE ga.status IN (" . implode(',', array_fill(0, count(grantPostFundingApplicationStatuses()), '?')) . ")
     ";
-    $params = [grantStatusApprovedFunded()];
+    $params = grantPostFundingApplicationStatuses();
 
     if (!$canTrack && grantUserCanApply()) {
         $sql .= ' AND ga.applicant_user_id = ?';
@@ -424,7 +426,7 @@ function grantUpdateFundedProjectMilestone(
         return ['ok' => false, 'error' => 'Milestone not found.'];
     }
 
-    if ((string) ($row['application_status'] ?? '') !== grantStatusApprovedFunded()) {
+    if (!in_array((string) ($row['application_status'] ?? ''), grantPostFundingApplicationStatuses(), true)) {
         return ['ok' => false, 'error' => 'Milestone tracking is only available for funded projects.'];
     }
 
