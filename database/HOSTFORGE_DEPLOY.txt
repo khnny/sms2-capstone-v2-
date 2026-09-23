@@ -87,6 +87,12 @@ B) HostForge DB already has OLD unprefixed tables (users, title_approvals, …)
    Then create any tables that were missing:
      php database/migrate.php
 
+After every release that adds a database migration, run `php database/migrate.php`
+again from the HostForge web terminal. The current release adds durable image
+storage for payment and signed-clearance uploads; this step is required before
+the release can accept new uploads. New images are stored in managed MySQL,
+so they survive container rebuilds and redeployments.
+
 
 STEP 5 — First admin
 --------------------

@@ -33,21 +33,22 @@ if (!$allowed) {
     exit('Access denied.');
 }
 
-$file = basename(str_replace('\\', '/', (string) ($payment['uploaded_file'] ?? '')));
-if ($file === '' || $file === '.' || $file === '..') {
-    http_response_code(404);
-    exit('File not found.');
+$stored = rcpPersistentImageData($payment);
+if ($stored !== null) {
+    $data = $stored['data'];
+    $mime = $stored['mime'];
+} else {
+    $file = basename(str_replace('\\', '/', (string) ($payment['uploaded_file'] ?? '')));
+    $path = rcpPaymentImagePath($file);
+    if ($file === '' || $file === '.' || $file === '..' || $path === null) {
+        error_log('RCP payment image missing: id=' . $paymentId . ' file=' . $file);
+        http_response_code(404);
+        exit('File not found.');
+    }
+    $data = (string) @file_get_contents($path);
+    $info = @getimagesize($path);
+    $mime = strtolower((string) ($info['mime'] ?? ''));
 }
-
-$path = rcpPaymentImagePath($file);
-if ($path === null) {
-    error_log('RCP payment image missing: id=' . $paymentId . ' file=' . $file);
-    http_response_code(404);
-    exit('File not found.');
-}
-
-$info = @getimagesize($path);
-$mime = strtolower((string) ($info['mime'] ?? ''));
 $allowedMimes = ['image/png' => 'png', 'image/jpeg' => 'jpg'];
 if (!isset($allowedMimes[$mime])) {
     error_log('RCP payment image invalid: id=' . $paymentId . ' path=' . $path);
@@ -56,9 +57,9 @@ if (!isset($allowedMimes[$mime])) {
 }
 
 header('Content-Type: ' . $mime);
-header('Content-Length: ' . (string) filesize($path));
+header('Content-Length: ' . (string) strlen($data));
 header('Content-Disposition: inline; filename="payment.' . $allowedMimes[$mime] . '"');
 header('Cache-Control: private, no-store, max-age=0');
 header('X-Content-Type-Options: nosniff');
-readfile($path);
+echo $data;
 exit;

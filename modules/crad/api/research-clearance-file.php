@@ -32,15 +32,21 @@ if (!$allowed) {
     exit('Access denied.');
 }
 
-$path = rscUploadedImagePath((string) ($clearance['uploaded_file'] ?? ''));
-if ($path === null) {
-    error_log('RSC clearance image missing: id=' . $clearanceId);
-    http_response_code(404);
-    exit('File not found.');
+$stored = rscPersistentImageData($clearance);
+if ($stored !== null) {
+    $data = $stored['data'];
+    $mime = $stored['mime'];
+} else {
+    $path = rscUploadedImagePath((string) ($clearance['uploaded_file'] ?? ''));
+    if ($path === null) {
+        error_log('RSC clearance image missing: id=' . $clearanceId);
+        http_response_code(404);
+        exit('File not found.');
+    }
+    $data = (string) @file_get_contents($path);
+    $info = @getimagesize($path);
+    $mime = strtolower((string) ($info['mime'] ?? ''));
 }
-
-$info = @getimagesize($path);
-$mime = strtolower((string) ($info['mime'] ?? ''));
 $allowedMimes = ['image/png' => 'png', 'image/jpeg' => 'jpg'];
 if (!isset($allowedMimes[$mime])) {
     error_log('RSC clearance image invalid: id=' . $clearanceId . ' path=' . $path);
@@ -49,9 +55,9 @@ if (!isset($allowedMimes[$mime])) {
 }
 
 header('Content-Type: ' . $mime);
-header('Content-Length: ' . (string) filesize($path));
+header('Content-Length: ' . (string) strlen($data));
 header('Content-Disposition: inline; filename="clearance.' . $allowedMimes[$mime] . '"');
 header('Cache-Control: private, no-store, max-age=0');
 header('X-Content-Type-Options: nosniff');
-readfile($path);
+echo $data;
 exit;

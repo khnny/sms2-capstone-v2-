@@ -284,6 +284,17 @@ function rcpPaymentImagePath(string $file): ?string
     return null;
 }
 
+/** @return array{data: string, mime: string}|null */
+function rcpPersistentImageData(array $row): ?array
+{
+    $data = $row['uploaded_blob'] ?? null;
+    $mime = strtolower(trim((string) ($row['uploaded_mime'] ?? '')));
+    if (!is_string($data) || $data === '' || !in_array($mime, ['image/png', 'image/jpeg'], true)) {
+        return null;
+    }
+    return ['data' => $data, 'mime' => $mime];
+}
+
 function rcpEnsureOrFromImage(PDO $crad, array $row): array
 {
     $or = trim((string) ($row['or_number'] ?? ''));
@@ -383,19 +394,12 @@ function rcpStoreUpload(int $groupId, array $file): array
         return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the collage payment.'];
     }
     $ext = $mime === 'image/png' ? 'png' : 'jpg';
-    $dir = ROOT_PATH . '/storage/uploads/college-payment';
-    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
-        return ['ok' => false, 'error' => 'The persistent college-payment storage folder could not be created on the hosting server.'];
-    }
-    if (!is_writable($dir)) {
-        return ['ok' => false, 'error' => 'The persistent college-payment storage folder is not writable on the hosting server.'];
+    $data = @file_get_contents($tmp);
+    if (!is_string($data) || $data === '') {
+        return ['ok' => false, 'error' => 'The payment image could not be read.'];
     }
     $stored = 'rcp-' . $groupId . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
-    $path = $dir . '/' . $stored;
-    if (!move_uploaded_file($tmp, $path)) {
-        return ['ok' => false, 'error' => 'The hosting server could not save the college payment picture in persistent storage.'];
-    }
-    return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $path];
+    return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $tmp, 'data' => $data, 'mime' => $mime, 'size' => strlen($data)];
 }
 
 function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber = '', string $stage = 'research_1'): array
@@ -428,6 +432,9 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         $crad->prepare(
             "UPDATE `crad_research_clearance_payments`
              SET uploaded_file = :file,
+                 uploaded_blob = :blob,
+                 uploaded_mime = :mime,
+                 uploaded_size = :size,
                  uploaded_original = :original,
                  or_number = :or_number,
                  research_stage = :stage,
@@ -438,6 +445,9 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
              WHERE id = :id"
         )->execute([
             ':file' => (string) $saved['file'],
+            ':blob' => (string) $saved['data'],
+            ':mime' => (string) $saved['mime'],
+            ':size' => (int) $saved['size'],
             ':original' => (string) $saved['original'],
             ':or_number' => $or,
             ':stage' => $stage,
@@ -457,14 +467,17 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
     } else {
         $crad->prepare(
             "INSERT INTO `crad_research_clearance_payments`
-                (research_group_id, research_stage, student_user_id, uploaded_file, uploaded_original, or_number, remarks, status)
+                (research_group_id, research_stage, student_user_id, uploaded_file, uploaded_blob, uploaded_mime, uploaded_size, uploaded_original, or_number, remarks, status)
              VALUES
-                (:gid, :stage, :uid, :file, :original, :or_number, '', 'pending')"
+                (:gid, :stage, :uid, :file, :blob, :mime, :size, :original, :or_number, '', 'pending')"
         )->execute([
             ':gid' => $groupId,
             ':stage' => $stage,
             ':uid' => (int) ($_SESSION['user_id'] ?? 0) ?: null,
             ':file' => (string) $saved['file'],
+            ':blob' => (string) $saved['data'],
+            ':mime' => (string) $saved['mime'],
+            ':size' => (int) $saved['size'],
             ':original' => (string) $saved['original'],
             ':or_number' => $or,
         ]);
@@ -474,6 +487,13 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         // Send the OCR result back immediately after upload. On later page
         // loads it is safely re-read from the original payment image.
         $fresh['receipt_student_name'] = $details['student_name'];
+    }
+    if (function_exists('logActivity')) {
+        logActivity(
+            'create',
+            'Submitted ' . rcpStageLabel($stage) . ' collage payment for research group #' . $groupId,
+            'crad'
+        );
     }
     return ['ok' => true, 'payment' => $fresh];
 }
@@ -490,6 +510,13 @@ function rcpStudentUpdateOr(PDO $crad, int $groupId, string $stage, string $orNu
     }
     $crad->prepare('UPDATE `crad_research_clearance_payments` SET or_number = ? WHERE id = ?')
         ->execute([$orNumber, (int) $row['id']]);
+    if (function_exists('logActivity')) {
+        logActivity(
+            'update',
+            'Updated ' . rcpStageLabel($stage) . ' payment reference number for research group #' . $groupId,
+            'crad'
+        );
+    }
     return ['ok' => true, 'payment' => rcpFindById($crad, (int) $row['id'])];
 }
 
@@ -551,6 +578,14 @@ function rcpAdminApprove(PDO $crad, array $payment, string $orNumber, string $re
         rcpApplyToClearance($crad, (int) $payment['research_group_id'], $or, $note, $stage);
     }
     $fresh = rcpFindById($crad, (int) $payment['id']);
+    if (function_exists('logActivity')) {
+        logActivity(
+            'update',
+            'Approved ' . rcpStageLabel($stage) . ' collage payment for research group #'
+                . (int) $payment['research_group_id'] . ' (reference ' . $or . ')',
+            'crad'
+        );
+    }
     if (function_exists('rscNotify') && function_exists('rscStudentRecipients')) {
         $clearance = [
             'id' => (int) ($payment['id'] ?? 0),
@@ -586,6 +621,14 @@ function rcpAdminReject(PDO $crad, array $payment): array
         ':name' => (string) (function_exists('getCurrentUserName') ? getCurrentUserName() : ''),
         ':id' => (int) $payment['id'],
     ]);
+    if (function_exists('logActivity')) {
+        logActivity(
+            'update',
+            'Returned ' . rcpStageLabel((string) ($payment['research_stage'] ?? 'research_1'))
+                . ' collage payment for research group #' . (int) $payment['research_group_id'],
+            'crad'
+        );
+    }
     return ['ok' => true, 'payment' => rcpFindById($crad, (int) $payment['id'])];
 }
 

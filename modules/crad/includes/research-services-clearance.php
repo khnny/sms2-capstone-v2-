@@ -906,6 +906,9 @@ function rscStudentUploadSigned(PDO $crad, array $clearance, array $file = []): 
         "UPDATE `crad_research_services_clearances`
          SET status = 'crad_received',
              uploaded_file = :file,
+             uploaded_blob = :blob,
+             uploaded_mime = :mime,
+             uploaded_size = :size,
              uploaded_original = :orig,
              uploaded_at = NOW(),
              form_verified = 1,
@@ -914,15 +917,27 @@ function rscStudentUploadSigned(PDO $crad, array $clearance, array $file = []): 
          WHERE id = :id"
     )->execute([
         ':file' => (string) $saved['file'],
+        ':blob' => (string) $saved['data'],
+        ':mime' => (string) $saved['mime'],
+        ':size' => (int) $saved['size'],
         ':orig' => (string) $saved['original'],
         ':id' => $id,
     ]);
 
     $fresh = rscFindById($crad, $id);
+    if (function_exists('logActivity')) {
+        logActivity(
+            'create',
+            'Submitted signed ' . rscStageLabel((string) ($clearance['research_stage'] ?? 'research_1'))
+                . ' clearance for research group #' . (int) $clearance['research_group_id'],
+            'crad'
+        );
+    }
     $sms = function_exists('db') ? db() : null;
     if ($sms instanceof PDO) {
         $officers = $sms->query(
-            "SELECT id, email, role_key FROM `sms2_users` WHERE role_key = 'crad_officer' AND status = 'active'"
+            "SELECT id, email, role_key FROM `sms2_users`
+             WHERE role_key IN ('crad_officer', 'sms_admin') AND status = 'active'"
         )->fetchAll() ?: [];
         foreach ($officers as $officer) {
             rscNotify(
@@ -970,6 +985,9 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
         "UPDATE `crad_research_services_clearances`
          SET status = :status,
              uploaded_file = :file,
+             uploaded_blob = :blob,
+             uploaded_mime = :mime,
+             uploaded_size = :size,
              uploaded_original = :orig,
              uploaded_at = NOW(),
              form_verified = 1
@@ -977,6 +995,9 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
     )->execute([
         ':status' => $nextStatus,
         ':file' => (string) $saved['file'],
+        ':blob' => (string) $saved['data'],
+        ':mime' => (string) $saved['mime'],
+        ':size' => (int) $saved['size'],
         ':orig' => (string) $saved['original'],
         ':id' => (int) $clearance['id'],
     ]);
@@ -1165,6 +1186,14 @@ function rscCradApproveSigned(PDO $crad, array $clearance, string $approverName 
     ]);
 
     $fresh = rscFindById($crad, (int) $clearance['id']) ?: $clearance;
+    if (function_exists('logActivity')) {
+        logActivity(
+            'update',
+            'Approved signed ' . rscStageLabel((string) ($clearance['research_stage'] ?? 'research_1'))
+                . ' clearance for research group #' . (int) $clearance['research_group_id'],
+            'crad'
+        );
+    }
     rscQueueFinalDefenseScheduling($crad, $fresh);
     foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
         rscNotify(
@@ -1216,6 +1245,14 @@ function rscCradRejectSigned(PDO $crad, array $clearance, string $reason = ''): 
     ]);
 
     $fresh = rscFindById($crad, (int) $clearance['id']) ?: $clearance;
+    if (function_exists('logActivity')) {
+        logActivity(
+            'update',
+            'Returned signed ' . rscStageLabel((string) ($clearance['research_stage'] ?? 'research_1'))
+                . ' clearance for research group #' . (int) $clearance['research_group_id'],
+            'crad'
+        );
+    }
     foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
         rscNotify(
             $crad,
@@ -1260,6 +1297,17 @@ function rscUploadedImagePath(string $file): ?string
     return null;
 }
 
+/** @return array{data: string, mime: string}|null */
+function rscPersistentImageData(array $row): ?array
+{
+    $data = $row['uploaded_blob'] ?? null;
+    $mime = strtolower(trim((string) ($row['uploaded_mime'] ?? '')));
+    if (!is_string($data) || $data === '' || !in_array($mime, ['image/png', 'image/jpeg'], true)) {
+        return null;
+    }
+    return ['data' => $data, 'mime' => $mime];
+}
+
 function rscStoreUpload(int $clearanceId, array $file): array
 {
     $code = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
@@ -1277,23 +1325,18 @@ function rscStoreUpload(int $clearanceId, array $file): array
     if ($tmp === '' || !is_uploaded_file($tmp)) {
         return ['ok' => false, 'error' => 'Invalid upload.'];
     }
-    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if (!in_array($ext, ['png', 'jpg', 'jpeg'], true)) {
+    $info = @getimagesize($tmp);
+    $mime = strtolower((string) ($info['mime'] ?? ''));
+    if (!in_array($mime, ['image/png', 'image/jpeg'], true)) {
         return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the Research Services Clearance form.'];
     }
-    $dir = ROOT_PATH . '/storage/uploads/research-clearance';
-    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
-        return ['ok' => false, 'error' => 'The persistent clearance storage folder could not be created on the hosting server.'];
+    $data = @file_get_contents($tmp);
+    if (!is_string($data) || $data === '') {
+        return ['ok' => false, 'error' => 'The uploaded clearance could not be read.'];
     }
-    if (!is_writable($dir)) {
-        return ['ok' => false, 'error' => 'The persistent clearance storage folder is not writable on the hosting server.'];
-    }
+    $ext = $mime === 'image/png' ? 'png' : 'jpg';
     $stored = 'rsc-' . $clearanceId . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
-    $path = $dir . '/' . $stored;
-    if (!move_uploaded_file($tmp, $path)) {
-        return ['ok' => false, 'error' => 'The hosting server could not save the uploaded clearance.'];
-    }
-    return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $path];
+    return ['ok' => true, 'file' => $stored, 'original' => $name, 'data' => $data, 'mime' => $mime, 'size' => strlen($data)];
 }
 
 function rscStatusLabel(string $status): string

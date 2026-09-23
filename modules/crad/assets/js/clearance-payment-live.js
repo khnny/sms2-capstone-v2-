@@ -145,11 +145,14 @@
         if (statusEl) {
             statusEl.textContent = (row.stage_label ? row.stage_label + ' — ' : '') + (row.status_label || row.status);
         }
-        var typing = document.activeElement === adminOr || document.activeElement === adminRemarks;
-        if (adminOr) adminOr.value = row.or_number || '';
+        var typingReference = document.activeElement === adminOr;
+        var typingRemarks = document.activeElement === adminRemarks;
+        // The page polls every second.  Do not replace text being entered by
+        // the approver with the still-saved value from the server.
+        if (adminOr && (forceFields || !typingReference)) adminOr.value = row.or_number || '';
         if (receiptStudent) receiptStudent.value = row.receipt_student_name || '';
         if (receiptStudentWrap) receiptStudentWrap.hidden = !row.receipt_student_name;
-        if (forceFields || !typing) {
+        if (forceFields || !typingRemarks) {
             if (adminRemarks && (forceFields || !adminRemarks.value || adminRemarks.value === 'HMA')) {
                 adminRemarks.value = row.remarks || 'HMA';
             }

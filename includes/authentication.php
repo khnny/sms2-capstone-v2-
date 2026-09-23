@@ -699,7 +699,10 @@ function getVisibleModules(array $modules): array
     $allowedModules = getAllowedModuleKeys();
     $visible = array_intersect_key($modules, array_flip($allowedModules));
 
-    if (smsIsGrantedAdminRole(getCurrentUserRoleKey()) && isset($visible['crad'])) {
+    // The operational Admin approves payments and signed clearances.  Keep
+    // that inbox in the CRAD navigation; only Super Admin is intentionally
+    // kept out of CRAD's operational workflow.
+    if (getCurrentUserRoleKey() === 'superadmin' && isset($visible['crad'])) {
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-clearance');
     }
 

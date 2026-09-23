@@ -540,12 +540,21 @@ endif;
 $roleKey   = getCurrentUserRoleKey();
 $statCards = [];
 
-if (smsIsGrantedAdminRole($roleKey)) {
+if ($roleKey === 'superadmin') {
     $statCards = [
         ['icon'=>'fa-users-cog',  'label'=>'Managed Accounts', 'value'=>'14', 'type'=>'primary', 'delta'=>'+3', 'deltaDir'=>'up', 'deltaLabel'=>'this month'],
         ['icon'=>'fa-shield-alt', 'label'=>'Secured Modules',  'value'=>(string) max(1, count($visibleModules)), 'type'=>'success', 'delta'=>'Active', 'deltaDir'=>'neutral', 'deltaLabel'=>'role scoped'],
         ['icon'=>'fa-user-check', 'label'=>'Active Sessions',  'value'=>'9', 'type'=>'info', 'delta'=>'+2', 'deltaDir'=>'up', 'deltaLabel'=>'today'],
         ['icon'=>'fa-history',    'label'=>'Audit Events',     'value'=>'186', 'type'=>'warning', 'delta'=>'+18', 'deltaDir'=>'up', 'deltaLabel'=>'this week'],
+    ];
+} elseif ($roleKey === 'sms_admin') {
+    // Admin and Super Admin are distinct roles.  Admin sees its operational
+    // overview instead of the Super Admin account/security dashboard.
+    $statCards = [
+        ['icon'=>'fa-th-large',      'label'=>'Assigned Modules', 'value'=>(string) max(1, count($visibleModules)), 'type'=>'primary', 'delta'=>'Active', 'deltaDir'=>'neutral', 'deltaLabel'=>'role scoped'],
+        ['icon'=>'fa-file-invoice',  'label'=>'Payment Approvals', 'value'=>'Open', 'type'=>'warning', 'delta'=>'Review', 'deltaDir'=>'neutral', 'deltaLabel'=>'college payments'],
+        ['icon'=>'fa-stamp',         'label'=>'Signed Clearances', 'value'=>'Open', 'type'=>'success', 'delta'=>'Review', 'deltaDir'=>'neutral', 'deltaLabel'=>'student submissions'],
+        ['icon'=>'fa-tasks',         'label'=>'Operational Queue', 'value'=>'Ready', 'type'=>'info', 'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'assigned work'],
     ];
 } elseif ($roleKey === 'admission') {
     $statCards = [

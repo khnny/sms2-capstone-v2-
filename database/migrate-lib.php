@@ -250,6 +250,32 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
     sms2MigrateOut('Applied ' . $applied . ' SQL statement(s).', $sink);
 }
 
+/** Keep clearance/payment images in HostForge's managed database across redeploys. */
+function sms2MigrateEnsureDurableUploadColumns(PDO $pdo, ?callable $sink = null): void
+{
+    $tables = [
+        'crad_research_clearance_payments',
+        'crad_research_services_clearances',
+    ];
+    $columns = [
+        'uploaded_blob' => 'MEDIUMBLOB NULL',
+        'uploaded_mime' => "VARCHAR(100) NOT NULL DEFAULT ''",
+        'uploaded_size' => 'INT UNSIGNED NOT NULL DEFAULT 0',
+    ];
+    foreach ($tables as $table) {
+        $exists = $pdo->prepare('SHOW TABLES LIKE ?');
+        $exists->execute([$table]);
+        if (!$exists->fetchColumn()) continue;
+        foreach ($columns as $column => $definition) {
+            $check = $pdo->prepare('SHOW COLUMNS FROM `' . $table . '` LIKE ?');
+            $check->execute([$column]);
+            if ($check->fetchColumn()) continue;
+            $pdo->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
+            sms2MigrateOut('Added durable upload column ' . $table . '.' . $column, $sink);
+        }
+    }
+}
+
 /**
  * @return array<int, string>
  */
@@ -303,6 +329,9 @@ function sms2RunMigrations(array $options = []): array
     foreach ($targets as $target) {
         sms2MigrateOneDatabase($target, $options, $sink);
     }
+    $pdo = sms2MigrateConnectServer(DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_CHARSET);
+    $pdo->exec('USE ' . sms2MigrateQuoteIdentifier(DB_NAME));
+    sms2MigrateEnsureDurableUploadColumns($pdo, $sink);
     sms2MigrateOut('', $sink);
     sms2MigrateOut('Migration complete.', $sink);
 
