@@ -18,6 +18,10 @@ require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../includes/layout-start.php';
 requireSuperAdmin();
 
+// Ensure opening the Super Admin audit screen itself is visible immediately,
+// including on installations that do not yet have historical audit entries.
+logActivity('view', 'Opened Activity Logs', 'user-management');
+
 $payload = umActivityLogsPayload(db());
 $logs = $payload['logs'];
 $actionOptions = array_fill_keys($payload['actions'], true);
@@ -187,5 +191,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </section>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260918"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260923-activity-live"></script>
 <?php require_once __DIR__ . '/../../../includes/layout-end.php'; ?>

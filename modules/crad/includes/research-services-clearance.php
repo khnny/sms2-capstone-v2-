@@ -1090,6 +1090,56 @@ function rscCradSign(PDO $crad, array $clearance, string $signature, string $sig
     return rscCradApproveSigned($crad, $clearance, $signerName);
 }
 
+/** Queue a cleared Research 2 group for Final Defense without replacing an existing schedule. */
+function rscQueueFinalDefenseScheduling(PDO $crad, array $clearance): void
+{
+    if (rscNormalizeStage((string) ($clearance['research_stage'] ?? 'research_1')) !== 'research_2') {
+        return;
+    }
+
+    $groupId = (int) ($clearance['research_group_id'] ?? 0);
+    if ($groupId <= 0) {
+        return;
+    }
+
+    try {
+        $existing = $crad->prepare(
+            "SELECT 1 FROM `crad_research_defense_schedules`
+             WHERE research_group_id = ?
+               AND LOWER(TRIM(COALESCE(defense_type, ''))) = LOWER(?)
+             LIMIT 1"
+        );
+        $existing->execute([$groupId, CRAD_DEFENSE_TYPE_FINAL]);
+        if ($existing->fetchColumn()) {
+            return;
+        }
+
+        $group = rscLoadGroupContext($crad, $groupId);
+        if (!$group) {
+            return;
+        }
+        $insert = $crad->prepare(
+            "INSERT INTO `crad_research_defense_schedules`
+                (research_group_id, proposal_id, proposal_number, group_number, research_group, research_title,
+                 adviser_name, panel_members, panel_chair, defense_type, status, recorded_by, recorded_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, 'Ready for Scheduling', ?, NOW(), NOW())"
+        );
+        $insert->execute([
+            $groupId,
+            (int) ($group['proposal_id'] ?? 0) ?: null,
+            (string) ($group['proposal_number'] ?? ''),
+            (string) ($group['group_number'] ?? ''),
+            (string) ($group['group_name'] ?? 'Research Group'),
+            (string) ($group['research_title'] ?? ''),
+            (string) ($group['adviser_name'] ?? ''),
+            CRAD_DEFENSE_TYPE_FINAL,
+            (int) ($_SESSION['user_id'] ?? 0) ?: null,
+        ]);
+    } catch (Throwable $e) {
+        error_log('Final Defense scheduling queue failed: ' . $e->getMessage());
+    }
+}
+
 /**
  * CRAD approves the student-uploaded signed clearance (no digital pad required).
  */
@@ -1115,6 +1165,7 @@ function rscCradApproveSigned(PDO $crad, array $clearance, string $approverName 
     ]);
 
     $fresh = rscFindById($crad, (int) $clearance['id']) ?: $clearance;
+    rscQueueFinalDefenseScheduling($crad, $fresh);
     foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
         rscNotify(
             $crad,

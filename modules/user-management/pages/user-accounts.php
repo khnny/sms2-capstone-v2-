@@ -23,6 +23,8 @@ require_once ROOT_PATH . '/includes/security-ui.php';
 require_once ROOT_PATH . '/includes/security-workflow.php';
 requireSuperAdmin();
 
+logActivity('view', $isArchiveView ? 'Opened User Archive' : 'Opened User Accounts', 'user-management');
+
 $minPasswordLen = (int) smsSetting('min_password_length', '8');
 
 $users = [];

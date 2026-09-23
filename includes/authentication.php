@@ -760,19 +760,13 @@ function getVisibleModules(array $modules): array
             smsAdminCoreSystemNav(),
             smsAdminDefenseSchedulingNav()
         );
-        if (!isset($visible['crad'])) {
-            $visible['crad'] = smsMergeModuleNav([
+        $visible = [
+            'crad' => smsMergeModuleNav([
                 'label' => 'CRAD',
                 'icon'  => 'fa-flask',
                 'hide_overview' => true,
-            ], $assignmentNav);
-        } else {
-            $visible['crad'] = smsMergeModuleNav($visible['crad'], $assignmentNav);
-        }
-        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
-        if (isset($visible['crad']['groups']['Research Management'])) {
-            unset($visible['crad']['groups']['Research Management']);
-        }
+            ], $assignmentNav),
+        ];
     }
 
     if (smsNormalizeRoleKey(getCurrentUserRoleKey()) === 'superadmin') {

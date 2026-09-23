@@ -30,6 +30,7 @@
     var current = null;
     var uploading = false;
     var lastStamp = '';
+    var orDirty = false;
 
     function rowStamp(row) {
         return row ? [row.id, row.research_stage, row.status, row.uploaded_url, row.or_number, row.remarks, row.updated_at, row.can_upload, row.locked_reason].join('|') : '';
@@ -71,7 +72,11 @@
             fileInput.disabled = !canUpload;
             if (!canUpload) fileInput.value = '';
         }
-        if (orInput) orInput.value = row && row.or_number ? row.or_number : '';
+        // Polling must never erase a reference number the student is still
+        // typing (or has typed but not yet saved).
+        if (orInput && !orDirty && document.activeElement !== orInput) {
+            orInput.value = row && row.or_number ? row.or_number : '';
+        }
         if (saveOrBtn) saveOrBtn.disabled = !(row && row.id && row.status !== 'approved' && !locked);
         if (orNotice) orNotice.hidden = !(row && row.has_upload && !row.or_number && !locked);
         if (gateEl) {
@@ -209,6 +214,7 @@
     root.addEventListener('click', function (event) {
         var openStage = event.target.closest('[data-rcp-open-stage]');
         if (openStage) {
+            orDirty = false;
             selectedStage = openStage.getAttribute('data-rcp-open-stage') || 'research_1';
             root.setAttribute('data-rcp-stage', selectedStage);
             refresh();
@@ -251,6 +257,7 @@
             }, fileInput.files[0])
                 .then(function (data) {
                     if (data && data.ok) {
+                        orDirty = false;
                         if (data.rows) renderStudentList(data.rows);
                         if (data.payment) applyStudent(data.payment);
                     } else if (data && data.error) {
@@ -274,6 +281,7 @@
                 research_stage: selectedStage
             }).then(function (data) {
                 if (data && data.ok) {
+                    orDirty = false;
                     if (data.rows) renderStudentList(data.rows);
                     if (data.payment) applyStudent(data.payment);
                 } else if (data && data.error) {
@@ -283,6 +291,10 @@
                 refresh();
             });
         });
+    }
+
+    if (orInput) {
+        orInput.addEventListener('input', function () { orDirty = true; });
     }
 
     if (approveBtn) {
