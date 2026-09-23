@@ -839,6 +839,25 @@ function rscStudentRecipients(PDO $crad, array $clearance): array
     return $recipients;
 }
 
+/** Department Heads receive the Research 1 → Pre-Oral panel-assignment handoff. */
+function rscDepartmentHeadRecipients(): array
+{
+    $sms = function_exists('db') ? db() : null;
+    if (!$sms instanceof PDO) {
+        return [];
+    }
+    try {
+        $stmt = $sms->query(
+            "SELECT id, email, role_key FROM `sms2_users`
+             WHERE role_key = 'department_head' AND status = 'active'"
+        );
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable $e) {
+        error_log('Department Head clearance recipients failed: ' . $e->getMessage());
+        return [];
+    }
+}
+
 function rscNormalizeSignature(string $signature): string
 {
     $signature = trim($signature);
@@ -1195,6 +1214,28 @@ function rscCradApproveSigned(PDO $crad, array $clearance, string $approverName 
         );
     }
     rscQueueFinalDefenseScheduling($crad, $fresh);
+
+    // Research 1 completion is the gate for Pre-Oral panel assignment. The
+    // Department Head's existing Defense-Ready page reads this same status;
+    // notify them immediately with the group preselected for assignment.
+    if (rscNormalizeStage((string) ($fresh['research_stage'] ?? 'research_1')) === 'research_1') {
+        $groupId = (int) ($fresh['research_group_id'] ?? 0);
+        $groupNumber = trim((string) ($fresh['leader_group_no'] ?? ''));
+        $groupLabel = $groupNumber !== '' ? $groupNumber : ('research group #' . $groupId);
+        $panelUrl = BASE_URL . '/modules/crad/pages/retrieve-defense-ready-research.php?group_id=' . $groupId;
+        foreach (rscDepartmentHeadRecipients() as $recipient) {
+            rscNotify(
+                $crad,
+                'research-1-panel-ready:' . (int) $fresh['id'] . ':u' . (int) ($recipient['id'] ?? 0),
+                (int) $fresh['id'],
+                $recipient,
+                'panel_assignment_ready',
+                'Research 1 ready for panel assignment',
+                $groupLabel . ' completed Research 1 clearance and is ready for Pre-Oral panel assignment.',
+                $panelUrl
+            );
+        }
+    }
     foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
         rscNotify(
             $crad,
