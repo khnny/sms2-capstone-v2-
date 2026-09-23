@@ -28,7 +28,7 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `sms2_activity_logs` (
-  `id` bigint(20) UNSIGNED NOT NULL,
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` int(10) UNSIGNED DEFAULT NULL,
   `user_name` varchar(150) DEFAULT NULL,
   `role_key` varchar(40) DEFAULT NULL,
