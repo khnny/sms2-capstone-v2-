@@ -13,6 +13,8 @@
     var uploadLabel = root.querySelector('[data-rcp-upload-label]');
     var fileInput = document.getElementById('rcpFile');
     var orInput = document.getElementById('rcpOr');
+    var saveOrBtn = document.getElementById('rcpSaveOrBtn');
+    var orNotice = root.querySelector('[data-rcp-or-notice]');
     var listBody = root.querySelector('[data-rcp-list]');
     var studentList = root.querySelector('[data-rcp-student-list]');
     var detail = root.querySelector('[data-rcp-detail]');
@@ -68,6 +70,8 @@
             if (!canUpload) fileInput.value = '';
         }
         if (orInput) orInput.value = row && row.or_number ? row.or_number : '';
+        if (saveOrBtn) saveOrBtn.disabled = !(row && row.id && row.status !== 'approved' && !locked);
+        if (orNotice) orNotice.hidden = !(row && row.has_upload && !row.or_number && !locked);
         if (gateEl) {
             if (locked) {
                 gateEl.hidden = true;
@@ -254,6 +258,26 @@
                     fileInput.value = '';
                     refresh();
                 });
+        });
+    }
+
+    if (saveOrBtn && orInput) {
+        saveOrBtn.addEventListener('click', function () {
+            if (!current || !current.id) return;
+            saveOrBtn.disabled = true;
+            post('student_update_or', {
+                or_number: orInput.value,
+                research_stage: selectedStage
+            }).then(function (data) {
+                if (data && data.ok) {
+                    if (data.rows) renderStudentList(data.rows);
+                    if (data.payment) applyStudent(data.payment);
+                } else if (data && data.error) {
+                    alert(data.error);
+                }
+            }).finally(function () {
+                refresh();
+            });
         });
     }
 

@@ -158,18 +158,26 @@ function rcpPublicRow(array $row): array
 
 function rcpParseReferenceNumber(string $text): string
 {
-    $text = strtoupper(trim(preg_replace('/\s+/', ' ', $text) ?? ''));
+    $text = trim(preg_replace('/\s+/', ' ', $text) ?? '');
     if ($text === '') {
         return '';
     }
-    if (preg_match('/\b(HMBP[0-9]{8,})\b/', $text, $m)) {
-        return $m[1];
+    // Only accept numbers tied to a receipt label.  This deliberately avoids
+    // amounts, dates, student IDs, transaction references, and invoice IDs.
+    $normalized = strtoupper(str_ireplace(['0R NO', '0R NUMBER'], ['OR NO', 'OR NUMBER'], $text));
+    $label = '(?:O\\s*R|OFFICIAL\\s+RECEIPT|RECEIPT)\\s*(?:NO\\.?|NUMBER|#)';
+    if (preg_match('/' . $label . '\\s*[:#-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,79})\\b/i', $normalized, $m)) {
+        $candidate = trim($m[1]);
+        // A labelled date or amount is still not a receipt number.
+        if (!preg_match('/^\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}$/', $candidate)
+            && !preg_match('/^(?:PHP|USD|\$)/i', $candidate)) {
+            return $candidate;
+        }
     }
-    if (preg_match('/REFERENCE\s*(NO\.?|NUMBER)\s*[:#]?\s*([A-Z0-9]{8,})/', $text, $m)) {
-        return $m[2];
-    }
-    if (preg_match('/\b(OR-[0-9]{4,})\b/', $text, $m)) {
-        return $m[1];
+    // Some issuers print the OR prefix directly next to the number without a
+    // separate label.  The prefix makes this distinct from arbitrary numbers.
+    if (preg_match('/\b(OR[-\/]\d{4,})\b/i', $normalized, $m)) {
+        return strtoupper($m[1]);
     }
     return '';
 }
@@ -177,7 +185,7 @@ function rcpParseReferenceNumber(string $text): string
 function rcpOcrImageText(string $path): string
 {
     $script = ROOT_PATH . '/modules/crad/includes/win-ocr.ps1';
-    if ($path === '' || !is_file($path) || !is_file($script)) {
+    if ($path === '' || !is_file($path) || !is_file($script) || !function_exists('exec')) {
         return '';
     }
     $real = realpath($path) ?: $path;
@@ -186,19 +194,31 @@ function rcpOcrImageText(string $path): string
     $outFile = $tmpDir . DIRECTORY_SEPARATOR . 'rcp-ocr-' . $token . '.txt';
     $jobFile = $tmpDir . DIRECTORY_SEPARATOR . 'rcp-ocr-job-' . $token . '.json';
     file_put_contents($jobFile, json_encode(['image' => $real, 'out' => $outFile], JSON_UNESCAPED_SLASHES));
-    $ps = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
-    if (!is_file($ps)) {
-        $ps = 'powershell';
-    }
-    $cmd = $ps
-        . ' -NoProfile -ExecutionPolicy Bypass -File '
-        . escapeshellarg($script)
-        . ' -JobFile '
-        . escapeshellarg($jobFile);
     $out = [];
     $code = 0;
-    @exec($cmd, $out, $code);
-    $text = is_file($outFile) ? trim((string) @file_get_contents($outFile)) : '';
+    $text = '';
+    if (PHP_OS_FAMILY === 'Windows') {
+        $ps = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
+        if (!is_file($ps)) {
+            $ps = 'powershell';
+        }
+        $cmd = $ps
+            . ' -NoProfile -ExecutionPolicy Bypass -File '
+            . escapeshellarg($script)
+            . ' -JobFile '
+            . escapeshellarg($jobFile);
+        @exec($cmd, $out, $code);
+        $text = is_file($outFile) ? trim((string) @file_get_contents($outFile)) : '';
+    } else {
+        // Linux production hosts do not provide Windows.Media.Ocr. Reuse the
+        // same OCR step through the host's installed Tesseract executable.
+        @exec('command -v tesseract 2>/dev/null', $out, $code);
+        if ($code === 0 && !empty($out[0])) {
+            $out = [];
+            @exec(escapeshellcmd(trim((string) $out[0])) . ' ' . escapeshellarg($real) . ' stdout -l eng 2>/dev/null', $out, $code);
+            $text = trim(implode("\n", $out));
+        }
+    }
     @unlink($outFile);
     @unlink($jobFile);
     if ($text === '') {
@@ -419,6 +439,21 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         $fresh = rcpFindById($crad, (int) $crad->lastInsertId());
     }
     return ['ok' => true, 'payment' => $fresh];
+}
+
+function rcpStudentUpdateOr(PDO $crad, int $groupId, string $stage, string $orNumber): array
+{
+    $row = rcpFindByGroup($crad, $groupId, $stage);
+    $orNumber = trim($orNumber);
+    if (!$row || (string) ($row['status'] ?? '') === 'approved') {
+        return ['ok' => false, 'error' => 'This payment can no longer be updated.'];
+    }
+    if ($orNumber === '' || strlen($orNumber) > 80) {
+        return ['ok' => false, 'error' => 'Enter the O.R. number exactly as printed on the receipt.'];
+    }
+    $crad->prepare('UPDATE `crad_research_clearance_payments` SET or_number = ? WHERE id = ?')
+        ->execute([$orNumber, (int) $row['id']]);
+    return ['ok' => true, 'payment' => rcpFindById($crad, (int) $row['id'])];
 }
 
 function rcpApplyToClearance(PDO $crad, int $groupId, string $orNumber, string $remarks, string $stage = 'research_1'): void

@@ -96,7 +96,7 @@ renderBreadcrumbs($breadcrumbs);
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold" for="rcpOr">Reference / O.R. Number</label>
-                    <input type="text" id="rcpOr" class="form-control" value="<?= e($public['or_number'] ?? '') ?>" placeholder="Taken from the payment picture" readonly>
+                    <input type="text" id="rcpOr" class="form-control" value="<?= e($public['or_number'] ?? '') ?>" placeholder="Detected from the payment picture or enter manually">
                 </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-sms-primary w-100" id="rcpUploadBtn" <?= $canUpload ? '' : 'disabled' ?>>
@@ -104,6 +104,11 @@ renderBreadcrumbs($breadcrumbs);
                     </button>
                 </div>
             </div>
+            <div class="alert alert-warning py-2 mt-3 mb-0" data-rcp-or-notice hidden>
+                OR Number could not be confidently detected. Please verify or enter the OR Number manually.
+            </div>
+            <div class="small text-muted mt-2">If detection is blank or incorrect, enter the O.R. number exactly as printed and save it before Admin approval.</div>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="rcpSaveOrBtn" disabled>Save O.R. Number</button>
             <div class="small text-muted mt-2" data-rcp-file-name><?= e($public['uploaded_original'] ?? '') ?></div>
         </section>
 

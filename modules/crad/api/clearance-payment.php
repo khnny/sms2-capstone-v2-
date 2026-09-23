@@ -50,6 +50,29 @@ try {
             exit;
         }
 
+        if ($action === 'student_update_or') {
+            if ($role !== 'student') {
+                throw new RuntimeException('Forbidden');
+            }
+            $group = chapterRegisteredStudentGroup($crad);
+            if (!$group) {
+                throw new InvalidArgumentException('No research group is registered yet.');
+            }
+            $result = rcpStudentUpdateOr(
+                $crad,
+                (int) $group['id'],
+                rcpNormalizeStage((string) ($_POST['research_stage'] ?? 'research_1')),
+                (string) ($_POST['or_number'] ?? '')
+            );
+            echo json_encode([
+                'ok' => !empty($result['ok']),
+                'error' => $result['error'] ?? null,
+                'payment' => isset($result['payment']) ? rcpPublicRow($result['payment']) : null,
+                'rows' => rcpStudentInbox($crad, (int) $group['id']),
+            ], JSON_INVALID_UTF8_SUBSTITUTE);
+            exit;
+        }
+
         if ($action === 'admin_approve' || $action === 'admin_reject') {
             if (!rcpCanApprove()) {
                 throw new RuntimeException('Forbidden');

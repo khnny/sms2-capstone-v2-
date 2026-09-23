@@ -37,7 +37,11 @@ function manuscriptEvaluationTotalMax(): float
 
 function finalPhaseEnsureSchema(PDO $crad): void
 {
-    finalDefenseEnsureSchema($crad);
+    // The CRAD schema is deployment-owned by modules/crad/database/crad_db.sql.
+    // In particular, do not perform DDL while rendering student-facing pages.
+    // finalDefenseEnsureSchema() was intentionally retired with that policy.
+    return;
+
     $tables = [
         "CREATE TABLE IF NOT EXISTS `crad_final_defense_recommendations` (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
