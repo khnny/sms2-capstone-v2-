@@ -37,7 +37,11 @@ CREATE TABLE `sms2_activity_logs` (
   `detail` varchar(500) NOT NULL,
   `ip_address` varchar(45) DEFAULT NULL,
   `user_agent` varchar(255) DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_logs_user` (`user_id`),
+  KEY `idx_logs_action` (`action`),
+  KEY `idx_logs_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -476,14 +480,6 @@ CREATE TABLE `sms2_user_passkeys` (
 -- Indexes for dumped tables
 --
 
---
--- Indexes for table `sms2_activity_logs`
---
-ALTER TABLE `sms2_activity_logs`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_logs_user` (`user_id`),
-  ADD KEY `idx_logs_action` (`action`),
-  ADD KEY `idx_logs_created` (`created_at`);
 
 --
 -- Indexes for table `sms2_admin_announcements`
@@ -575,11 +571,6 @@ ALTER TABLE `sms2_user_passkeys`
 -- AUTO_INCREMENT for dumped tables
 --
 
---
--- AUTO_INCREMENT for table `sms2_activity_logs`
---
-ALTER TABLE `sms2_activity_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `sms2_admin_announcements`
