@@ -103,7 +103,7 @@ function rdPanelReadySql(): string
                 GROUP_CONCAT(DISTINCT COALESCE(NULLIF(u.full_name, ''), NULLIF(rpa.panel_name, ''), 'Panel Member') ORDER BY COALESCE(NULLIF(u.full_name, ''), NULLIF(rpa.panel_name, ''), 'Panel Member') SEPARATOR '\n') AS panel_members,
                 MAX(rpa.updated_at) AS panel_updated_at,
                 GREATEST(
-                    COALESCE(rsc.updated_at, '1000-01-01 00:00:00'),
+                    COALESCE(MAX(rsc.updated_at), '1000-01-01 00:00:00'),
                     COALESCE(MAX(rpa.updated_at), '1000-01-01 00:00:00')
                 ) AS updated_at
              FROM `crad_research_groups` rg
