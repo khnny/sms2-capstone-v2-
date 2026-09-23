@@ -20,9 +20,16 @@ requireSuperAdmin();
 
 // Ensure opening the Super Admin audit screen itself is visible immediately,
 // including on installations that do not yet have historical audit entries.
-logActivity('view', 'Opened Activity Logs', 'user-management');
+$wroteOpen = logActivity('view', 'Opened Activity Logs', 'user-management');
 
 $payload = umActivityLogsPayload(db());
+$auditDiag = null;
+if (!(int) ($payload['stats']['total'] ?? 0)) {
+    $auditDiag = smsActivityLogLastError()
+        ?: ($wroteOpen
+            ? 'Write reported OK but no rows were returned. Check DB_DATABASE.'
+            : 'Activity log write did not persist. The DB user may lack INSERT on sms2_activity_logs.');
+}
 $logs = $payload['logs'];
 $actionOptions = array_fill_keys($payload['actions'], true);
 $moduleOptions = array_fill_keys($payload['modules'], true);
@@ -34,6 +41,12 @@ $liveEndpoint = BASE_URL . '/api/activity-logs.php';
 ?>
 
 <link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css" rel="stylesheet">
+
+<?php if (!empty($auditDiag)): ?>
+<div class="alert alert-warning mx-3 mt-3" role="alert">
+    <strong>Activity log diagnostic:</strong> <?= e((string) $auditDiag) ?>
+</div>
+<?php endif; ?>
 
 <?php
 $pageBannerIcon        = 'history';

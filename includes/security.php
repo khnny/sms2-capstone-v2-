@@ -23,11 +23,11 @@ function smsSendSecurityHeaders(): void
     // Baseline CSP — local assets + Cloudflare Turnstile CAPTCHA only when used
     header(
         "Content-Security-Policy: default-src 'self'; " .
-        "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; " .
+        "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; " .
         "style-src 'self' 'unsafe-inline'; " .
         "font-src 'self' data:; " .
         "img-src 'self' data: blob:; " .
-        "connect-src 'self' https://challenges.cloudflare.com; " .
+        "connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com https://static.cloudflareinsights.com; " .
         "frame-src 'self' https://challenges.cloudflare.com https://bcp-admissions.elearningcommons.com; " .
         "child-src 'self' https://challenges.cloudflare.com https://bcp-admissions.elearningcommons.com; " .
         "frame-ancestors 'self'; " .

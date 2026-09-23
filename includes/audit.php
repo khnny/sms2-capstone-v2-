@@ -17,6 +17,18 @@ function smsActivityLogTableSql(): string
 }
 
 /**
+ * Last activity-log failure message for Super Admin diagnostics.
+ */
+function smsActivityLogLastError(?string $set = null): ?string
+{
+    static $last = null;
+    if ($set !== null) {
+        $last = $set === '' ? null : $set;
+    }
+    return $last;
+}
+
+/**
  * Make the audit trail available on installations that predate the prefixed
  * schema migration. Prefer detecting an existing table so HostForge app DB
  * users without CREATE privilege can still read/write logs.
@@ -30,6 +42,7 @@ function smsActivityLogTableReady(?PDO $pdo = null): bool
 
     $pdo = $pdo ?: db();
     if (!$pdo) {
+        smsActivityLogLastError('Database connection unavailable.');
         return $ready = false;
     }
 
@@ -38,9 +51,11 @@ function smsActivityLogTableReady(?PDO $pdo = null): bool
     // 1) Existing table + SELECT privilege is enough for logging.
     try {
         $pdo->query('SELECT 1 FROM ' . $tableSql . ' LIMIT 1');
+        smsActivityLogLastError('');
         return $ready = true;
     } catch (Throwable $e) {
         // Fall through: missing table or no SELECT — try CREATE once.
+        smsActivityLogLastError('Table check failed: ' . $e->getMessage());
     }
 
     // 2) Create only when missing (needs CREATE). Migrations remain preferred.
@@ -64,15 +79,20 @@ function smsActivityLogTableReady(?PDO $pdo = null): bool
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
         $pdo->query('SELECT 1 FROM ' . $tableSql . ' LIMIT 1');
+        smsActivityLogLastError('');
         return $ready = true;
     } catch (Throwable $e) {
-        error_log('SMS2 activity log table unavailable: ' . $e->getMessage());
+        $msg = 'SMS2 activity log table unavailable: ' . $e->getMessage();
+        error_log($msg);
+        smsActivityLogLastError($msg);
         return $ready = false;
     }
 }
 
 /**
  * Write an audit log entry.
+ *
+ * @return bool True when the row was inserted.
  */
 function logActivity(
     string $action,
@@ -82,10 +102,13 @@ function logActivity(
     ?string $userName = null,
     ?string $roleKey = null,
     bool $allowSessionFallback = true
-): void {
+): bool {
     $pdo = db();
     if (!$pdo || !smsActivityLogTableReady($pdo)) {
-        return;
+        if (smsActivityLogLastError() === null) {
+            smsActivityLogLastError('Activity log table is not ready.');
+        }
+        return false;
     }
 
     if ($allowSessionFallback) {
@@ -117,7 +140,12 @@ function logActivity(
             smsClientIp(),
             $ua !== '' ? $ua : null,
         ]);
+        smsActivityLogLastError('');
+        return true;
     } catch (Throwable $e) {
-        error_log('SMS2 audit log failed: ' . $e->getMessage());
+        $msg = 'SMS2 audit log failed: ' . $e->getMessage();
+        error_log($msg);
+        smsActivityLogLastError($msg);
+        return false;
     }
 }
