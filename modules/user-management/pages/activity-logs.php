@@ -80,7 +80,7 @@ renderBreadcrumbs($breadcrumbs);
                 <p class="small text-muted mb-0">Search by user, then narrow by action, module, or date. Export downloads the currently visible rows.</p>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <span class="um-live-badge" id="adminLogLiveBadge" title="Polling every 3 seconds">
+                <span class="um-live-badge" id="adminLogLiveBadge" title="Polling every 2 seconds">
                     <span class="um-live-dot" aria-hidden="true"></span>
                     <span id="adminLogLiveLabel">Live</span>
                 </span>
@@ -191,5 +191,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </section>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260923-activity-live"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260923-activity-live-2"></script>
 <?php require_once __DIR__ . '/../../../includes/layout-end.php'; ?>

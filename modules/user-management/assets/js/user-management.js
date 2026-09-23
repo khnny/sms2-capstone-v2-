@@ -468,10 +468,6 @@
 
             var incomingId = parseInt(data.latest_id || 0, 10) || 0;
             var logs = Array.isArray(data.logs) ? data.logs : [];
-            if (incomingId === latestId && tableBody.querySelectorAll('tr.log-row').length === logs.length) {
-                return;
-            }
-
             if (data.stats) {
                 Object.keys(data.stats).forEach(function (key) {
                     var el = document.querySelector('[data-um-log-stat="' + key + '"]');
@@ -502,19 +498,27 @@
         function poll() {
             if (inFlight || document.hidden) return;
             inFlight = true;
-            fetch(endpoint, {
+            // The HostForge edge can cache static and JSON responses despite
+            // ordinary cache headers.  A per-request parameter guarantees
+            // that the admin sees the current audit payload, not a stale one.
+            var separator = endpoint.indexOf('?') === -1 ? '?' : '&';
+            var liveUrl = endpoint + separator + '_live=' + Date.now();
+            fetch(liveUrl, {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin',
                 cache: 'no-store'
             })
-                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('Activity log feed unavailable (' + res.status + ')');
+                    return res.json();
+                })
                 .then(applyPayload)
                 .catch(function () { setLiveState(false); })
                 .finally(function () { inFlight = false; });
         }
 
         poll();
-        setInterval(poll, 3000);
+        setInterval(poll, 2000);
         document.addEventListener('visibilitychange', function () {
             if (!document.hidden) poll();
         });
