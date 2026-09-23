@@ -263,12 +263,20 @@ function sms2MigrateEnsureDurableUploadColumns(PDO $pdo, ?callable $sink = null)
         'uploaded_size' => 'INT UNSIGNED NOT NULL DEFAULT 0',
     ];
     foreach ($tables as $table) {
-        $exists = $pdo->prepare('SHOW TABLES LIKE ?');
+        // MariaDB does not accept native PDO placeholders in SHOW statements.
+        // Query information_schema instead so this works on HostForge.
+        $exists = $pdo->prepare(
+            'SELECT 1 FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1'
+        );
         $exists->execute([$table]);
         if (!$exists->fetchColumn()) continue;
         foreach ($columns as $column => $definition) {
-            $check = $pdo->prepare('SHOW COLUMNS FROM `' . $table . '` LIKE ?');
-            $check->execute([$column]);
+            $check = $pdo->prepare(
+                'SELECT 1 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1'
+            );
+            $check->execute([$table, $column]);
             if ($check->fetchColumn()) continue;
             $pdo->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
             sms2MigrateOut('Added durable upload column ' . $table . '.' . $column, $sink);
