@@ -8,6 +8,9 @@
  */
 
 // define('SMS2_DEPLOY_TOKEN', 'YOUR_DEPLOY_TOKEN');
+// For a live CAPTCHA, use keys whose hostname list includes this site domain.
+// define('SMS2_TURNSTILE_SITE_KEY', 'YOUR_TURNSTILE_SITE_KEY');
+// define('SMS2_TURNSTILE_SECRET_KEY', 'YOUR_TURNSTILE_SECRET_KEY');
 
 // Optional: Fixed 32-byte or base64 encryption key for secrets (AES-256).
 // define('SMS2_APP_KEY', '');

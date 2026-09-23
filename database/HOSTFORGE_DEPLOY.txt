@@ -42,6 +42,14 @@ survives redeploys even if storage/keys/app.key is regenerated):
   SMS2_SMTP_USERNAME=your.account@gmail.com
   SMS2_SMTP_PASSWORD=xxxxxxxxxxxxxxxx
 
+Optional live CAPTCHA (recommended):
+  SMS2_TURNSTILE_SITE_KEY=<Cloudflare Turnstile site key>
+  SMS2_TURNSTILE_SECRET_KEY=<Cloudflare Turnstile secret key>
+
+Add the exact production hostname to the Turnstile widget's hostname list.
+Environment variables take precedence over values saved in System Settings,
+so they remain usable after a container redeploy.
+
 Do NOT set a separate crad_db. CRAD uses the same DB automatically
 (CRAD_DB_NAME falls back to DB_DATABASE / DB_NAME).
 

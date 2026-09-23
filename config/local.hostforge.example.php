@@ -7,6 +7,7 @@
  *   DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
  *   SMS2_DEPLOY_TOKEN  (optional; for /setup/deploy-db.php)
  *   SMS2_SMTP_PASSWORD / SMS2_SMTP_USERNAME  (Gmail App Password — survives redeploys)
+ *   SMS2_TURNSTILE_SITE_KEY / SMS2_TURNSTILE_SECRET_KEY (recommended for live CAPTCHA)
  *
  * Full checklist: database/HOSTFORGE_DEPLOY.txt
  *
@@ -16,6 +17,8 @@
 
 // Optional: token for setup/deploy-db.php web migrate
 // define('SMS2_DEPLOY_TOKEN', 'YOUR_DEPLOY_TOKEN');
+// define('SMS2_TURNSTILE_SITE_KEY', 'YOUR_TURNSTILE_SITE_KEY');
+// define('SMS2_TURNSTILE_SECRET_KEY', 'YOUR_TURNSTILE_SECRET_KEY');
 
 // Auto-detect BASE_URL when the app is at the web root.
 // define('BASE_URL', '');

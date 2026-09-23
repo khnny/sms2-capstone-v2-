@@ -30,7 +30,7 @@ $total = (int) $payload['stats']['total'];
 $logins = (int) $payload['stats']['logins'];
 $changes = (int) $payload['stats']['changes'];
 $exports = (int) $payload['stats']['exports'];
-$liveEndpoint = BASE_URL . '/modules/user-management/includes/activity-logs-data.php';
+$liveEndpoint = BASE_URL . '/api/activity-logs.php';
 ?>
 
 <link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css" rel="stylesheet">
