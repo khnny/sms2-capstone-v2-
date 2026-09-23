@@ -716,6 +716,26 @@ function chapterIsReadyForPreOral(PDO $crad, int $groupId): bool
         return false;
     }
 
+    // A completed Research 1 clearance is the final CRAD gate for the
+    // Pre-Oral workflow. It must remain valid even if older chapter records
+    // were migrated with legacy statuses.
+    try {
+        $clearance = $crad->prepare(
+            "SELECT 1 FROM `crad_research_services_clearances`
+             WHERE research_group_id = ?
+               AND research_stage = 'research_1'
+               AND status = 'clearance_done'
+             LIMIT 1"
+        );
+        $clearance->execute([$groupId]);
+        if ($clearance->fetchColumn()) {
+            return true;
+        }
+    } catch (Throwable $e) {
+        // The clearance table may not exist during a first-time migration;
+        // retain the chapter-based fallback below.
+    }
+
     $stmt = $crad->prepare(
         "SELECT COUNT(*)
          FROM `crad_chapter_submissions` latest

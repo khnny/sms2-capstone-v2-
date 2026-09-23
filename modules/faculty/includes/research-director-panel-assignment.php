@@ -103,30 +103,10 @@ function rdPanelReadySql(): string
                 GROUP_CONCAT(DISTINCT COALESCE(NULLIF(u.full_name, ''), NULLIF(rpa.panel_name, ''), 'Panel Member') ORDER BY COALESCE(NULLIF(u.full_name, ''), NULLIF(rpa.panel_name, ''), 'Panel Member') SEPARATOR '\n') AS panel_members,
                 MAX(rpa.updated_at) AS panel_updated_at,
                 GREATEST(
-                    COALESCE(ch1.updated_at, '1000-01-01 00:00:00'),
-                    COALESCE(ch2.updated_at, '1000-01-01 00:00:00'),
-                    COALESCE(ch3.updated_at, '1000-01-01 00:00:00'),
+                    COALESCE(rsc.updated_at, '1000-01-01 00:00:00'),
                     COALESCE(MAX(rpa.updated_at), '1000-01-01 00:00:00')
                 ) AS updated_at
              FROM `crad_research_groups` rg
-             INNER JOIN `crad_chapter_submissions` ch1 ON ch1.id = (
-                SELECT cs1.id FROM `crad_chapter_submissions` cs1
-                WHERE cs1.research_group_id = rg.id AND cs1.chapter_number = 1
-                ORDER BY cs1.version_number DESC, cs1.id DESC LIMIT 1
-             )
-             INNER JOIN `crad_chapter_evaluations` ce1 ON ce1.submission_id = ch1.id
-             INNER JOIN `crad_chapter_submissions` ch2 ON ch2.id = (
-                SELECT cs2.id FROM `crad_chapter_submissions` cs2
-                WHERE cs2.research_group_id = rg.id AND cs2.chapter_number = 2
-                ORDER BY cs2.version_number DESC, cs2.id DESC LIMIT 1
-             )
-             INNER JOIN `crad_chapter_evaluations` ce2 ON ce2.submission_id = ch2.id
-             INNER JOIN `crad_chapter_submissions` ch3 ON ch3.id = (
-                SELECT cs3.id FROM `crad_chapter_submissions` cs3
-                WHERE cs3.research_group_id = rg.id AND cs3.chapter_number = 3
-                ORDER BY cs3.version_number DESC, cs3.id DESC LIMIT 1
-             )
-             INNER JOIN `crad_chapter_evaluations` ce3 ON ce3.submission_id = ch3.id
              LEFT JOIN `crad_research_adviser_assignments` raa ON raa.id = (
                 SELECT raa2.id FROM `crad_research_adviser_assignments` raa2
                 WHERE raa2.assignment_status IN ('Assigned', 'Confirmed')
@@ -142,12 +122,6 @@ function rdPanelReadySql(): string
                ON rpa.research_group_id = rg.id
               AND " . rdPanelActiveAssignmentSql('rpa') . "
              LEFT JOIN sms2_users u ON u.id = rpa.panel_user_id
-             WHERE ch1.status = 'Accepted'
-               AND ch2.status = 'Accepted'
-               AND ch3.status = 'Accepted'
-               AND UPPER(REPLACE(ce1.result, ' ', '_')) IN ('APPROVED', 'APPROVED_WITH_REVISION')
-               AND UPPER(REPLACE(ce2.result, ' ', '_')) IN ('APPROVED', 'APPROVED_WITH_REVISION')
-               AND UPPER(REPLACE(ce3.result, ' ', '_')) IN ('APPROVED', 'APPROVED_WITH_REVISION')
              GROUP BY rg.id, rg.proposal_id, rg.title_approval_id, rg.proposal_number, rg.group_number,
                       group_name, research_title, rg.academic_year, adviser_name";
 }
