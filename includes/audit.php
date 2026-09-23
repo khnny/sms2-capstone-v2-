@@ -9,9 +9,17 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/security.php';
 
 /**
+ * Physical activity-log table (quoted for SQL).
+ */
+function smsActivityLogTableSql(): string
+{
+    return sms2_quote_table(sms2_table('activity_logs'));
+}
+
+/**
  * Make the audit trail available on installations that predate the prefixed
- * schema migration. This is deliberately limited to the one independent
- * audit table; normal schema migrations remain the preferred deployment path.
+ * schema migration. Prefer detecting an existing table so HostForge app DB
+ * users without CREATE privilege can still read/write logs.
  */
 function smsActivityLogTableReady(?PDO $pdo = null): bool
 {
@@ -25,9 +33,20 @@ function smsActivityLogTableReady(?PDO $pdo = null): bool
         return $ready = false;
     }
 
+    $tableSql = smsActivityLogTableSql();
+
+    // 1) Existing table + SELECT privilege is enough for logging.
+    try {
+        $pdo->query('SELECT 1 FROM ' . $tableSql . ' LIMIT 1');
+        return $ready = true;
+    } catch (Throwable $e) {
+        // Fall through: missing table or no SELECT — try CREATE once.
+    }
+
+    // 2) Create only when missing (needs CREATE). Migrations remain preferred.
     try {
         $pdo->exec(
-            'CREATE TABLE IF NOT EXISTS `sms2_activity_logs` (
+            'CREATE TABLE IF NOT EXISTS ' . $tableSql . ' (
                 `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` int(10) UNSIGNED DEFAULT NULL,
                 `user_name` varchar(150) DEFAULT NULL,
@@ -44,6 +63,7 @@ function smsActivityLogTableReady(?PDO $pdo = null): bool
                 KEY `idx_logs_created` (`created_at`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+        $pdo->query('SELECT 1 FROM ' . $tableSql . ' LIMIT 1');
         return $ready = true;
     } catch (Throwable $e) {
         error_log('SMS2 activity log table unavailable: ' . $e->getMessage());
@@ -82,7 +102,7 @@ function logActivity(
 
     try {
         $stmt = $pdo->prepare(
-            'INSERT INTO `sms2_activity_logs`
+            'INSERT INTO ' . smsActivityLogTableSql() . '
                 (user_id, user_name, role_key, action, module_key, detail, ip_address, user_agent)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
