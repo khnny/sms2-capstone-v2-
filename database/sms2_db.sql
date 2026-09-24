@@ -466,14 +466,17 @@ CREATE TABLE `sms2_user_authenticators` (
 --
 
 CREATE TABLE `sms2_user_passkeys` (
-  `id` int(10) UNSIGNED NOT NULL,
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` int(10) UNSIGNED NOT NULL,
-  `credential_id` varchar(255) NOT NULL,
+  `credential_id` varchar(1024) NOT NULL,
   `public_key` text NOT NULL,
   `sign_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
   `device_name` varchar(120) NOT NULL DEFAULT 'Passkey',
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `last_used_at` datetime DEFAULT NULL
+  `last_used_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_passkey_cred` (`credential_id`(255)),
+  KEY `idx_passkey_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -561,11 +564,6 @@ ALTER TABLE `sms2_users`
 ALTER TABLE `sms2_user_authenticators`
   ADD PRIMARY KEY (`user_id`);
 
---
--- Indexes for table `sms2_user_passkeys`
---
-ALTER TABLE `sms2_user_passkeys`
-  ADD PRIMARY KEY (`id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -632,11 +630,6 @@ ALTER TABLE `sms2_users`
 ALTER TABLE `sms2_user_authenticators`
   MODIFY `user_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1599;
 
---
--- AUTO_INCREMENT for table `sms2_user_passkeys`
---
-ALTER TABLE `sms2_user_passkeys`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- Constraints for dumped tables
@@ -672,6 +665,12 @@ ALTER TABLE `sms2_role_permissions`
 --
 ALTER TABLE `sms2_users`
   ADD CONSTRAINT `fk_users_role` FOREIGN KEY (`role_key`) REFERENCES `sms2_roles` (`role_key`) ON UPDATE CASCADE;
+
+--
+-- Constraints for table `sms2_user_passkeys`
+--
+ALTER TABLE `sms2_user_passkeys`
+  ADD CONSTRAINT `fk_passkey_user` FOREIGN KEY (`user_id`) REFERENCES `sms2_users` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

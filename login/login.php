@@ -1333,7 +1333,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
                 <a href="<?= BASE_URL ?>/login/forgot-password.php" data-auth-transition data-auth-direction="left">Forgot password?</a>
             </div>
         </form>
-        <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=10"></script>
+        <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=12"></script>
         <?php endif; ?>
     </div>
     <aside class="login-side" aria-label="Student admission">
